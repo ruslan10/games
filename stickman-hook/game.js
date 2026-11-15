@@ -32,7 +32,7 @@ const ui = {
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
   clearTitle: $('clear-title'), clearTime: $('clear-time'), skins: $('skins'),
-  clearStars: $('clear-stars'),
+  clearStars: $('clear-stars'), skinToast: $('skin-toast'),
 };
 
 /* ---------- persistent state ---------- */
@@ -62,11 +62,23 @@ const SKINS = [
   { name: 'סגול', at: 15, c: { hogBlue: '#a05ce8', hogBlueD: '#7c3cc6', hogBlueL: '#d6b2ff' } },
   { name: 'זהב',  at: 20, c: { hogBlue: '#ffb020', hogBlueD: '#d98c08', hogBlueL: '#ffe08a' } },
   { name: 'ורוד', at: 25, c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+  /* character skins (original art, palette-evoked), unlocked by total stars */
+  { name: 'גיבור על', stars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
+  { name: 'שותף חלל', stars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'שועל', stars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
+  { name: 'איכידנה', stars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
 ];
-function skinUnlocked(i) { return store.level >= SKINS[i].at; }
+function skinUnlocked(i) {
+  const sk = SKINS[i];
+  if (sk.at && store.level >= sk.at) return true;
+  if (sk.stars && store.totalStars() >= sk.stars) return true;
+  return false;
+}
 function applySkin() {
   const i = skinUnlocked(store.skin) ? store.skin : 0;
   V.configure({ colors: SKINS[i].c });
+  game.body = SKINS[i].body || 'hog';
+  game.playerColors = V.getConfig().colors; // live palette: boot world colors + skin coat
 }
 function renderSkins() {
   ui.skins.innerHTML = '';
@@ -74,8 +86,8 @@ function renderSkins() {
     const b = document.createElement('button');
     b.className = 'skin-dot' + (i === store.skin && skinUnlocked(i) ? ' sel' : '') + (skinUnlocked(i) ? '' : ' locked');
     b.style.background = sk.c.hogBlue;
-    b.title = sk.name + (skinUnlocked(i) ? '' : ' (נפתח בשלב ' + sk.at + ')');
-    b.textContent = skinUnlocked(i) ? '' : sk.at;
+    b.title = sk.name + (skinUnlocked(i) ? '' : sk.stars ? ' (נפתח עם ' + sk.stars + ' כוכבים)' : ' (נפתח בשלב ' + sk.at + ')');
+    b.textContent = skinUnlocked(i) ? '' : (sk.stars ? sk.stars + '⭐' : sk.at);
     b.addEventListener('click', () => {
       if (!skinUnlocked(i)) return;
       store.skin = i; applySkin(); renderSkins(); sfx.click();
@@ -135,6 +147,8 @@ const game = {
   playTime: 0,
   stars: [],
   runStars: 0,
+  body: 'hog',
+  toastTimer: 0,
 };
 
 function buildWorld() {
@@ -173,6 +187,17 @@ function setState(s) {
   if (s === 'menu') {
     ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ⭐ ' + store.totalStars() + '/' + (LEVELS.length * 3);
     renderSkins();
+    // celebrate the first newly-unlocked skin not yet announced
+    for (let i = 1; i < SKINS.length; i++) {
+      if (skinUnlocked(i) && !localStorage.getItem('sh_seen_skin_' + i)) {
+        localStorage.setItem('sh_seen_skin_' + i, '1');
+        ui.skinToast.textContent = '🎉 סקין חדש נפתח: ' + SKINS[i].name + '!';
+        ui.skinToast.classList.add('show');
+        clearTimeout(game.toastTimer);
+        game.toastTimer = setTimeout(() => ui.skinToast.classList.remove('show'), 3400);
+        break;
+      }
+    }
   }
   if (s === 'intro') {
     ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1) + ' / ' + LEVELS.length;
@@ -232,6 +257,12 @@ function win() {
   store.level = Math.min(game.levelIndex + 2, LEVELS.length);
   store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
   game.world.setHeld(false);
+  // superman-style fly-off: launch the hero up and ahead, physics keeps
+  // simulating through the clear celebration instead of freezing.
+  const pl = game.world.player;
+  pl.vx = Math.max(pl.vx, 760);
+  pl.vy = Math.min(pl.vy, -820);
+  game.clearTimer = 1.6;
 }
 
 function fail() {
@@ -465,7 +496,7 @@ function frame(ts) {
 
   const playing = game.state === 'play' || game.state === 'clearing' || game.state === 'failing';
   if (playing) {
-    game.world.update(game.state === 'play' ? dt : 0);
+    game.world.update(game.state === 'play' || game.state === 'clearing' ? dt : 0);
     game.particles.update(dt);
     /* events -> juice */
     for (const ev of game.world.drainEvents()) {
@@ -558,7 +589,9 @@ function render() {
   const p = st.player;
   const speed = Math.hypot(p.vx, p.vy);
   let poseOpts;
-  if (rope) {
+  if (game.state === 'clearing') {
+    poseOpts = { pose: 'super', angle: Math.max(-0.9, Math.min(0.5, Math.atan2(p.vy, Math.max(200, Math.abs(p.vx))))), stretch: 0.3 };
+  } else if (rope) {
     const ang = Math.atan2(p.y - rope.y, p.x - rope.x) - Math.PI / 2;
     poseOpts = { pose: 'swing', angle: ang, curl: Math.min(1, speed / 900), stretch: Math.min(1, speed / 1100) * 0.5 };
   } else if (st.grounded) {
@@ -568,7 +601,7 @@ function render() {
     poseOpts = { pose: 'fly', angle: tilt, curl: 0.35, stretch: Math.min(1, speed / 1200) * 0.4 };
   }
   const pts = V.drawPlayer(ctx, Object.assign({
-    x: p.x, y: p.y, time: game.time, facing: 1, colors: COLORS,
+    x: p.x, y: p.y, time: game.time, facing: 1, colors: game.playerColors || COLORS, body: game.body,
   }, poseOpts));
 
   drawRope(rope, pts && pts.hand);
@@ -597,5 +630,7 @@ window.__game = {
   get runStars() { return game.runStars; },
   get stars() { return game.stars; },
   totalStars: () => store.totalStars(),
+  get body() { return game.body; },
+  setSkin: i => { store.skin = i; applySkin(); renderSkins(); },
 };
 })();
