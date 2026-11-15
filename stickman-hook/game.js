@@ -555,6 +555,12 @@ function renderLevelGrid() {
 function openLevelSel() { renderLevelGrid(); ui.levelsel.classList.add('show'); sfx.click(); }
 ui.btnChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
 ui.btnCharsClose.addEventListener('click', () => { ui.charsel.classList.remove('show'); sfx.click(); });
+$('btn-chars-x').addEventListener('click', () => { ui.charsel.classList.remove('show'); sfx.click(); });
+$('btn-levels-x').addEventListener('click', () => { ui.levelsel.classList.remove('show'); sfx.click(); });
+/* tap the empty backdrop of a picker overlay to close it */
+[ui.charsel, ui.levelsel].forEach(ov => ov.addEventListener('click', e => {
+  if (e.target === ov) { ov.classList.remove('show'); sfx.click(); }
+}));
 ui.btnLevels.addEventListener('click', openLevelSel);
 ui.btnIntroLevels.addEventListener('click', openLevelSel);
 ui.btnIntroChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });

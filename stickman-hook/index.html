@@ -105,6 +105,14 @@
 
   /* ---- character select ---- */
   #charsel { background: linear-gradient(180deg, #6a4de0 0%, #8f7bff 100%); z-index: 30; }
+  /* scrollable picker overlays: center when content fits, full scroll when not */
+  #charsel, #levelsel { overflow-y: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; padding: 76px 10px 30px; }
+  #charsel .levelsel-title, #levelsel .levelsel-title { margin-top: auto; }
+  #charsel > .bigbtn, #levelsel > .bigbtn { margin-bottom: auto; }
+  .sel-x { position: fixed; top: 14px; left: 14px; width: 52px; height: 52px; border-radius: 14px; border: none;
+    background: rgba(36,31,58,.38); color: #fff; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 5; }
+  .sel-x svg { width: 24px; height: 24px; }
   #char-grid { display: grid; grid-template-columns: repeat(5, 150px); gap: 16px; max-width: 94vw; margin-bottom: 26px; }
   .char-card { position: relative; border: none; cursor: pointer; font-family: inherit;
     background: rgba(255,255,255,.14); border-radius: 20px; padding: 12px 8px 10px;
@@ -179,12 +187,14 @@
 </div>
 
 <div class="overlay" id="levelsel">
+  <button class="sel-x" id="btn-levels-x" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div class="levelsel-title">בחירת שלב</div>
   <div id="level-grid"></div>
   <button class="bigbtn small" id="btn-levels-close">סגירה</button>
 </div>
 
 <div class="overlay" id="charsel">
+  <button class="sel-x" id="btn-chars-x" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div class="levelsel-title">בחירת דמות</div>
   <div id="char-grid"></div>
   <button class="bigbtn small" id="btn-chars-close">סגירה</button>
