@@ -15,6 +15,91 @@ V.configure({ colors: {
   anchor: '#ffffff', anchorCore: '#5a4fd0', anchorRing: '#ffffff',
 }, reducedMotion: false });
 const COLORS = V.getConfig().colors;
+/* background themes: one per 3-level block, cycling. Each is a palette
+   override plus a cheap ambient weather layer drawn in screen space. */
+const THEMES = [
+  { name: 'קיץ',    weather: 'none',   c: {} },
+  { name: 'גשם',    weather: 'rain',   c: { skyTop: '#5a7f9e', skyBottom: '#a9c3d6', cloud: '#d7e2ea', sun: '#dfe8ee', hillFar: '#7d9bb0', hillMid: '#5d8592', hillNear: '#3f6b74' } },
+  { name: 'שקיעה',  weather: 'drift',  c: { skyTop: '#ff9d5c', skyBottom: '#ffd9a0', cloud: '#ffe6c7', sun: '#ff7b4d', hillFar: '#e8a37c', hillMid: '#c97e6b', hillNear: '#9d5f63' } },
+  { name: 'סתיו',   weather: 'leaves', c: { skyTop: '#f5b34d', skyBottom: '#fde9c0', cloud: '#fdf3dd', sun: '#ffe08a', hillFar: '#dfa25a', hillMid: '#c47f43', hillNear: '#9c5c31' } },
+  { name: 'שלג',    weather: 'snow',   c: { skyTop: '#8fb8d8', skyBottom: '#e8f3fb', cloud: '#ffffff', sun: '#fdfdf2', hillFar: '#c3dcee', hillMid: '#a5cbe4', hillNear: '#82b4d4' } },
+  { name: 'לילה',   weather: 'stars',  c: { skyTop: '#131a3a', skyBottom: '#3a3f6e', cloud: '#4a5178', sun: '#f4f1de', hillFar: '#2c3157', hillMid: '#232849', hillNear: '#1a1e3c' } },
+];
+const WEATHER_COUNTS = { rain: 70, snow: 42, leaves: 22, drift: 26, stars: 70 };
+const LEAF_COLORS = ['#d35400', '#e67e22', '#c0392b', '#f39c12'];
+
+function buildWeather() {
+  game.weather.length = 0;
+  const kind = game.theme.weather;
+  const n = WEATHER_COUNTS[kind] || 0;
+  for (let i = 0; i < n; i++) {
+    const w = {
+      x: Math.random() * W, y: Math.random() * H,
+      vy: kind === 'rain' ? 850 + Math.random() * 250
+        : kind === 'snow' ? 45 + Math.random() * 55
+        : kind === 'leaves' ? 42 + Math.random() * 46
+        : kind === 'drift' ? -14 - Math.random() * 22 : 0,
+      vx: kind === 'rain' ? -140 : 0,
+      size: kind === 'stars' ? 0.8 + Math.random() * 1.7
+          : kind === 'snow' ? 1.4 + Math.random() * 1.8
+          : kind === 'leaves' ? 3.5 + Math.random() * 3
+          : kind === 'drift' ? 1.6 + Math.random() * 2.2 : 2,
+      phase: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 3,
+      rot: Math.random() * Math.PI * 2,
+      color: kind === 'leaves' ? LEAF_COLORS[i % LEAF_COLORS.length] : null,
+    };
+    game.weather.push(w);
+  }
+}
+
+function updateWeather(dt) {
+  if (!game.weather.length) return;
+  for (const w of game.weather) {
+    w.y += w.vy * dt;
+    w.x += (w.vx + Math.sin(game.time * 1.7 + w.phase) * (game.theme.weather === 'snow' ? 22 : game.theme.weather === 'leaves' ? 55 : 0)) * dt;
+    w.rot += w.spin * dt;
+    if (w.y > H + 24) { w.y = -20; w.x = Math.random() * (W + 200); }
+    else if (w.y < -26 && w.vy < 0) { w.y = H + 20; w.x = Math.random() * W; }
+    if (w.x < -30) w.x += W + 60; else if (w.x > W + 30) w.x -= W + 60;
+  }
+}
+
+function drawWeather() {
+  const kind = game.theme.weather;
+  if (kind === 'none' || !game.weather.length) return;
+  ctx.save();
+  if (kind === 'rain') {
+    ctx.strokeStyle = 'rgba(205,226,242,.5)';
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const w of game.weather) { ctx.moveTo(w.x, w.y); ctx.lineTo(w.x - 5, w.y + 17); }
+    ctx.stroke();
+  } else if (kind === 'stars') {
+    ctx.fillStyle = '#ffffff';
+    for (const w of game.weather) {
+      ctx.globalAlpha = 0.35 + 0.6 * (0.5 + 0.5 * Math.sin(game.time * 2 + w.phase));
+      ctx.beginPath(); ctx.arc(w.x, w.y * 0.72, w.size, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (kind === 'snow') {
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    for (const w of game.weather) { ctx.beginPath(); ctx.arc(w.x, w.y, w.size, 0, Math.PI * 2); ctx.fill(); }
+  } else if (kind === 'leaves') {
+    for (const w of game.weather) {
+      ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.rot);
+      ctx.fillStyle = w.color;
+      ctx.fillRect(-w.size, -w.size * 0.45, w.size * 2, w.size * 0.9);
+      ctx.restore();
+    }
+  } else if (kind === 'drift') {
+    ctx.fillStyle = '#ffe9b0';
+    for (const w of game.weather) {
+      ctx.globalAlpha = 0.3 + 0.4 * (0.5 + 0.5 * Math.sin(game.time * 2.4 + w.phase));
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.size, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
 
 /* ---------- DOM ---------- */
 const canvas = document.getElementById('game');
@@ -206,6 +291,9 @@ const game = {
   fruits: [],
   runPts: 0,
   pops: [],
+  theme: THEMES[0],
+  themeColors: COLORS,
+  weather: [],
   zoom: 1,              // finish-moment camera zoom (1 = normal)
   celebration: null,    // { t, wave2 } while 'clearing'
   rings: [],            // shockwave rings spawned at the finish instant
@@ -248,7 +336,10 @@ function buildWorld() {
 function loadLevel(i) {
   game.levelIndex = Math.max(0, Math.min(i, LEVELS.length - 1));
   game.level = LEVELS[game.levelIndex];
+  game.theme = THEMES[Math.floor(game.levelIndex / 3) % THEMES.length];
+  game.themeColors = Object.assign({}, COLORS, game.theme.c);
   buildWorld();
+  buildWeather();
 }
 
 function setState(s) {
@@ -871,6 +962,7 @@ function frame(ts) {
     }
   }
 
+  updateWeather(dt);
   render();
 }
 
@@ -879,7 +971,8 @@ function render() {
   const st = game.world.getState();
   const cam = game.world.camera;
 
-  V.drawBackground(ctx, { x: cam.x, y: cam.y, width: W, height: H, time: game.time, colors: COLORS });
+  V.drawBackground(ctx, { x: cam.x, y: cam.y, width: W, height: H, time: game.time, colors: game.themeColors });
+  drawWeather();
 
   ctx.save();
   if (game.shake > 0) ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
@@ -969,6 +1062,8 @@ window.__game = {
   renderFrame: () => render(),
   get runPts() { return game.runPts; },
   get zoom() { return game.zoom; },
+  get theme() { return game.theme.name; },
+  get weatherCount() { return game.weather.length; },
   get fruits() { return game.fruits; },
   totalPts: () => store.totalPts(),
   totalStars: () => store.totalStars(),
