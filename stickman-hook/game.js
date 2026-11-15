@@ -579,7 +579,41 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+let snowmanSpr = null;
+function snowmanSprite() {
+  if (snowmanSpr) return snowmanSpr;
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 88;
+  const g = c.getContext('2d');
+  const ball = (x, y, r) => {
+    g.fillStyle = '#241f3a'; g.beginPath(); g.arc(x, y + 2.5, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#f4fafd'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(190,220,235,.55)'; g.beginPath(); g.arc(x + r * 0.25, y + r * 0.3, r * 0.72, 0, Math.PI * 2); g.fill();
+  };
+  ball(32, 70, 17); ball(32, 46, 13); ball(32, 26, 10);
+  g.fillStyle = '#241f3a';
+  g.beginPath(); g.arc(28.5, 23.5, 1.7, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(35.5, 23.5, 1.7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ff8a3d';
+  g.beginPath(); g.moveTo(32, 26); g.lineTo(43, 28.5); g.lineTo(32, 30.5); g.closePath(); g.fill();
+  g.fillStyle = '#241f3a';
+  g.beginPath(); g.arc(32, 42, 1.8, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(32, 50, 1.8, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#ff4d5e'; g.lineWidth = 5; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(23, 34); g.quadraticCurveTo(32, 38.5, 41, 34); g.stroke();
+  g.beginPath(); g.moveTo(36, 37); g.lineTo(40, 47); g.stroke();
+  g.strokeStyle = '#7a4a2b'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(20, 44); g.lineTo(9, 34); g.stroke();
+  g.beginPath(); g.moveTo(44, 44); g.lineTo(56, 36); g.stroke();
+  g.fillStyle = '#241f3a'; g.fillRect(23, 9, 18, 9);
+  g.fillRect(19, 16.5, 26, 4);
+  snowmanSpr = c;
+  return c;
+}
+
 function drawPads(L) {
+  const snow = game.theme && game.theme.weather === 'snow';
+  let trampIdx = 0;
   for (const p of L.pads) {
     const w = p.x2 - p.x1, hh = p.y2 - p.y1;
     const len = Math.hypot(w, hh), ang = Math.atan2(hh, w);
@@ -606,6 +640,46 @@ function drawPads(L) {
         ctx.beginPath(); ctx.arc(0, 5, 9, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(len, 5, 9, 0, Math.PI * 2); ctx.fill();
       }
+    } else if (p.kind === 'slide') {
+      // מגלשה: curved green chute - entry high, exit lip kicks up
+      ctx.strokeStyle = '#241f3a'; ctx.lineWidth = 26; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(4, 0);
+      ctx.quadraticCurveTo(len * 0.55, 6, len - 14, -16); ctx.stroke();
+      ctx.strokeStyle = '#35c48d'; ctx.lineWidth = 15;
+      ctx.beginPath(); ctx.moveTo(4, -2);
+      ctx.quadraticCurveTo(len * 0.55, 4, len - 14, -18); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(10, -6);
+      ctx.quadraticCurveTo(len * 0.55, 0, len - 22, -19); ctx.stroke();
+      // red launch lip at the exit
+      ctx.fillStyle = '#ff4d5e';
+      ctx.beginPath(); ctx.arc(len - 12, -20, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.beginPath(); ctx.arc(len - 15, -23, 3.5, 0, Math.PI * 2); ctx.fill();
+      // entry flag
+      ctx.fillStyle = '#241f3a'; ctx.fillRect(2, -34, 4, 26);
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath(); ctx.moveTo(6, -34); ctx.lineTo(26, -28); ctx.lineTo(6, -22); ctx.closePath(); ctx.fill();
+    } else if (p.kind === 'bump') {
+      // round balloon bumper (local coords: origin at x1,y1 = center, len = radius)
+      ctx.rotate(-ang); // cancel pad rotation: bumpers are radial
+      const r = len;
+      ctx.fillStyle = '#241f3a';
+      ctx.beginPath(); ctx.arc(0, 4, r + 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff8a3d';
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff5e3d';
+      ctx.beginPath(); ctx.arc(0, 0, r, Math.PI * 0.15, Math.PI * 0.85); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.beginPath(); ctx.ellipse(-r * 0.32, -r * 0.38, r * 0.24, r * 0.15, -0.6, 0, Math.PI * 2); ctx.fill();
+      // polka dots on the lower half
+      ctx.fillStyle = 'rgba(255,255,255,.5)';
+      for (let d = 0; d < 3; d++) {
+        ctx.beginPath(); ctx.arc(-r * 0.4 + d * r * 0.4, r * 0.45, 4, 0, Math.PI * 2); ctx.fill();
+      }
+      // little tie at the bottom
+      ctx.fillStyle = '#241f3a';
+      ctx.beginPath(); ctx.moveTo(-6, r + 6); ctx.lineTo(6, r + 6); ctx.lineTo(0, r + 16); ctx.closePath(); ctx.fill();
     } else if (p.kind === 'trampBox') {
       // square trampoline block: dark box, spring coil inside, red top
       ctx.fillStyle = '#241f3a';
@@ -634,6 +708,13 @@ function drawPads(L) {
       }
     }
     ctx.restore();
+    // snow-theme decoration: a snowman sitting by every few trampoline-like pads
+    if (snow && p.kind && (trampIdx++ % 3 === 0)) {
+      const spr = snowmanSprite();
+      const mx = p.kind === 'bump' ? p.x1 - 64 : (p.x1 + p.x2) / 2 + 34;
+      const my = p.kind === 'bump' ? p.y1 - 26 : Math.min(p.y1, p.y2) - 84;
+      ctx.drawImage(spr, mx, my);
+    }
   }
 }
 

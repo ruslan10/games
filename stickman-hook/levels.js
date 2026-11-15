@@ -17,6 +17,8 @@ window.StickmanLevels = [
     pads: [
       { id: 'p1', x1: 260, y1: 640, x2: 400, y2: 640, boostX: 320, minSpeed: 800 },
       { id: 'g1', x1: 480, y1: 720, x2: 1230, y2: 720, boostX: 220, minSpeed: 700 },
+      { id: 's1', kind: 'slide', x1: 880, y1: 642, x2: 1040, y2: 700, boostX: 150, minSpeed: 800 },
+      { id: 'b1', kind: 'bump', x1: 1180, y1: 700, x2: 1232, y2: 700, boostX: 150, boostY: -320, minSpeed: 780 },
     ],
         fruits: [
       { x: 520, y: 350, v: 5, k: 'apple' },
@@ -38,6 +40,8 @@ window.StickmanLevels = [
     pads: [
       { id: 'p1', x1: 230, y1: 640, x2: 370, y2: 640, boostX: 330, minSpeed: 810 },
       { id: 'g1', x1: 450, y1: 720, x2: 1300, y2: 720, boostX: 230, minSpeed: 700 },
+      { id: 's1', kind: 'slide', x1: 760, y1: 642, x2: 920, y2: 700, boostX: 150, minSpeed: 800 },
+      { id: 'b1', kind: 'bump', x1: 1120, y1: 700, x2: 1174, y2: 700, boostX: 150, boostY: -320, minSpeed: 780 },
     ],
         fruits: [
       { x: 490, y: 330, v: 5, k: 'banana' },
@@ -164,41 +168,102 @@ function buildLevel(name, hint, o) {
   const pads = [{ id: 'p1', x1: 230, y1: padY, x2: 370, y2: padY, boostX: o.launch || 360, minSpeed: 850 }];
   if (o.nets === 'full') {
     pads.push({ id: 'g1', x1: 450, y1: 735, x2: Math.round(lastX) - 40, y2: 735, boostX: 240, minSpeed: 710 });
+    for (let bx = 800; bx < lastX - 200; bx += 900) {
+      pads.push({ id: 'fb' + bx, kind: 'bump', x1: bx, y1: 706, x2: bx + 52, y2: 706, boostX: 150, boostY: -320, minSpeed: 780 });
+    }
   } else if (o.nets === 'seg') {
     for (let k = 0; k < anchors.length - 1; k += 2) {
       const ax = anchors[k].x + 120;
       const bx = anchors[Math.min(k + 1, anchors.length - 1)].x + 60;
       pads.push({ id: 'g' + k, x1: Math.round(ax), y1: 740, x2: Math.round(bx), y2: 740, boostX: 230, minSpeed: 700 });
+      const mx = (ax + bx) / 2;
+      pads.push({ id: 's' + k, kind: k % 4 === 0 ? 'slide' : 'bump',
+        x1: Math.round(k % 4 === 0 ? mx - 75 : mx), y1: Math.round(k % 4 === 0 ? 704 : 728),
+        x2: Math.round(k % 4 === 0 ? mx + 75 : mx + 50), y2: Math.round(k % 4 === 0 ? 738 : 728),
+        boostX: 150, boostY: k % 4 === 0 ? 0 : -310, minSpeed: 780 });
     }
   } else if (o.nets === 'sparse') {
-    for (let k = 1; k < anchors.length; k += 3) {
-      pads.push({ id: 'g' + k, x1: Math.round(anchors[k].x - 65), y1: 745, x2: Math.round(anchors[k].x + 65), y2: 745, boostX: 280, minSpeed: 760 });
+    for (let k = 1; k < anchors.length; k += 2) {
+      const cx = anchors[k].x, cy = 745;
+      if (k % 4 === 1) {
+        pads.push({ id: 'g' + k, x1: Math.round(cx - 65), y1: cy, x2: Math.round(cx + 65), y2: cy, boostX: 280, minSpeed: 760 });
+      } else if (k % 4 === 3) {
+        pads.push({ id: 'g' + k, kind: 'slide', x1: Math.round(cx - 80), y1: Math.round(cy - 32),
+          x2: Math.round(cx + 80), y2: Math.round(cy), boostX: 150, minSpeed: 800 });
+      } else if (k % 4 === 0) {
+        pads.push({ id: 'g' + k, kind: 'bump', x1: Math.round(cx), y1: Math.round(cy + 6),
+          x2: Math.round(cx + 52), y2: Math.round(cy + 6), boostX: 150, boostY: -320, minSpeed: 780 });
+      } else {
+        const hw = 68;
+        pads.push({ id: 'g' + k, kind: 'tramp', x1: Math.round(cx - hw), y1: Math.round(cy),
+          x2: Math.round(cx + hw), y2: Math.round(cy), boostX: 220, boostY: -700, minSpeed: 840 });
+      }
     }
   } else if (o.nets === 'tramp') {
-    // Spring trampolines as the only recovery, in three shapes: tilted pads,
-    // V-shaped ramp pairs that funnel a fall back up, and square box tramps.
-    const every = o.trampEvery || 2;
+    // Spring trampolines as the only recovery, in five shapes: tilted pads,
+    // V-shaped ramp pairs, square box tramps, curved slide launchers (מגלשה)
+    // that fling you forward-up, and round balloon bumpers (pinball bounce).
+    const every = o.trampEvery || 1;
     for (let k = 2; k < anchors.length; k += every) {
       const cx = anchors[k].x, cy = 748;
-      if (k % 6 === 0) {
+      const shape = k % 5;
+      if (shape === 4) {
         // V: two angled ramps meeting low at the center - bounces you up-middle
         const hw = 88, rise = 46;
         pads.push({ id: 't' + k + 'a', kind: 'trampV', x1: Math.round(cx - hw), y1: Math.round(cy - rise),
           x2: Math.round(cx), y2: Math.round(cy + 12), boostX: 60, boostY: -760, minSpeed: 880 });
         pads.push({ id: 't' + k + 'b', kind: 'trampV', x1: Math.round(cx), y1: Math.round(cy + 12),
           x2: Math.round(cx + hw), y2: Math.round(cy - rise), boostX: 60, boostY: -760, minSpeed: 880 });
-      } else if (k % 4 !== 0) {
+      } else if (shape === 1) {
         // box: square trampoline block with a springy red top
         pads.push({ id: 't' + k, kind: 'trampBox', x1: Math.round(cx - 70), y1: Math.round(cy),
           x2: Math.round(cx + 70), y2: Math.round(cy), boostX: 120, boostY: -740, minSpeed: 880 });
+      } else if (shape === 0) {
+        // slide: curved chute, entry high-left, exit low-right, launches forward-up
+        pads.push({ id: 't' + k, kind: 'slide', x1: Math.round(cx - 85), y1: Math.round(cy - 36),
+          x2: Math.round(cx + 85), y2: Math.round(cy + 2), boostX: 150, minSpeed: 820 });
+      } else if (shape === 2) {
+        // bump: round floating balloon bumper (center, radius via x2)
+        pads.push({ id: 't' + k, kind: 'bump', x1: Math.round(cx), y1: Math.round(cy + 8),
+          x2: Math.round(cx + 56), y2: Math.round(cy + 8), boostX: 150, boostY: -330, minSpeed: 800 });
       } else {
-        const tilt = (k % 8 === 0 ? -0.26 : 0.26);
+        const tilt = (k % 10 === 3 ? -0.26 : 0.26);
         const hw = 72;
         pads.push({ id: 't' + k, kind: 'tramp',
           x1: Math.round(cx - hw * Math.cos(tilt)), y1: Math.round(cy - hw * Math.sin(tilt)),
           x2: Math.round(cx + hw * Math.cos(tilt)), y2: Math.round(cy + hw * Math.sin(tilt)),
           boostX: 220, boostY: -720, minSpeed: 880 });
       }
+    }
+  }
+  /* keep bounce pads out of the swing band: any pad under an anchor must sit
+     below that anchor's lowest possible swing point (rope 420 + radius + slack),
+     so mid-swing arcs never clip a trampoline - pads only catch real falls. */
+  const ropeMax = 420, slack = 45;
+  for (const pd of pads) {
+    if (pd.id === 'p1') continue;
+    const isBump = pd.kind === 'bump';
+    const r = isBump ? Math.hypot(pd.x2 - pd.x1, pd.y2 - pd.y1) : 0;
+    const topY = Math.min(pd.y1, pd.y2) - (isBump ? r : 0);
+    const loX = Math.min(pd.x1, pd.x2) - r, hiX = Math.max(pd.x1, pd.x2) + r;
+    let need = 0;
+    for (const a of anchors) {
+      if (a.x > loX - ropeMax * 0.55 && a.x < hiX + ropeMax * 0.55) {
+        need = Math.max(need, a.y + ropeMax + slack);
+      }
+    }
+    if (need > topY) {
+      const shift = need - topY;
+      pd.y1 += shift; pd.y2 += shift;
+    }
+  }
+  if (o.nets === 'none' && !o.pure) {
+    // no safety net by design - but one playful bounce mid-run keeps it fair
+    const mx = Math.round(lastX * 0.45);
+    if (o.n % 2 === 0) {
+      pads.push({ id: 'nb', kind: 'bump', x1: mx, y1: 706, x2: mx + 54, y2: 706, boostX: 150, boostY: -330, minSpeed: 800 });
+    } else {
+      pads.push({ id: 'ns', kind: 'slide', x1: mx - 80, y1: 668, x2: mx + 80, y2: 712, boostX: 160, minSpeed: 820 });
     }
   }
   (o.boosts || []).forEach((b, j) => {
@@ -248,9 +313,9 @@ const GENERATED = [
   buildLevel('זהב באופק', '', { n: 13, gap: [430, 445], dys: [1, -0.8, 0.8, -1], amp: 140, nets: 'none', assist: 180, killY: 920 }),
   buildLevel('סופה', '', { n: 14, gap: [428, 448], dys: [-1, 1, -1, 1, 0.5], amp: 140, nets: 'none', assist: 180, killY: 910 }),
   buildLevel('ברק', '', { n: 14, gap: [430, 450], dys: [0.8, -1, 1, -0.8, -1], amp: 142, nets: 'tramp', assist: 180, killY: 910 }),
-  buildLevel('סופת ווים', '', { n: 14, gap: [432, 450], dys: [-1, 0.9, -0.9, 1], amp: 145, nets: 'none', assist: 180, killY: 900 }),
-  buildLevel('כמעט שם', '', { n: 14, gap: [432, 452], dys: [1, -1, 0.7, -0.7, 1, -1], amp: 148, nets: 'none', assist: 180, killY: 900 }),
-  buildLevel('האליפות הגדולה', 'השלב האחרון. תנו הכל!', { n: 16, gap: [430, 452], dys: [-1, 1, -1, 1, -1, 1], amp: 150, nets: 'none', assist: 180, killY: 890, fin: 60 }),
+  buildLevel('סופת ווים', '', { pure: true, n: 14, gap: [432, 450], dys: [-1, 0.9, -0.9, 1], amp: 145, nets: 'none', assist: 180, killY: 900 }),
+  buildLevel('כמעט שם', '', { pure: true, n: 14, gap: [432, 452], dys: [1, -1, 0.7, -0.7, 1, -1], amp: 148, nets: 'none', assist: 180, killY: 900 }),
+  buildLevel('האליפות הגדולה', 'השלב האחרון. תנו הכל!', { pure: true, n: 16, gap: [430, 452], dys: [-1, 1, -1, 1, -1, 1], amp: 150, nets: 'none', assist: 180, killY: 890, fin: 60 }),
 ];
 
 window.StickmanLevels = window.StickmanLevels.concat(GENERATED);

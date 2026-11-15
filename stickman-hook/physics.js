@@ -156,6 +156,21 @@
       for(let i=0;i<this.pads.length;i++){
         const a=this.pads[i];if(a.enabled===false)continue;
         const dx=a.x2-a.x1,dy=a.y2-a.y1,len=Math.hypot(dx,dy);if(!len)continue;
+        if(a.kind==='bump'){
+          // round balloon bumper: x1,y1 = center, len = radius; radial reflect
+          const bm0=this.options.padBoostMult===undefined?1:this.options.padBoostMult;
+          const ddx=p.x-a.x1,ddy=p.y-a.y1,d=Math.hypot(ddx,ddy)||1e-6;
+          if(d>p.radius+len)continue;
+          const bnx=ddx/d,bny=ddy/d;
+          if(p.vx*bnx+p.vy*bny>=0)continue;
+          p.x=a.x1+bnx*(len+p.radius+0.001);p.y=a.y1+bny*(len+p.radius+0.001);
+          const blast=this._padTimes.get(a);if(blast!==undefined&&this.time-blast<0.08)continue;
+          if(this._reflect(bnx,bny,finite(a.restitution,1.15)*bm0,finite(a.minSpeed,640)*bm0,(a.boostX||0)*bm0,(a.boostY||0)*bm0)){
+            // balloon bumpers are friendly: never throw the hero backward
+            p.vx=Math.max(p.vx,180);
+            this._padTimes.set(a,this.time);this._event('pad',{padId:a.id===undefined?i:a.id});
+          }continue;
+        }
         let nx=finite(a.nx,dy/len),ny=finite(a.ny,-dx/len);const nl=Math.hypot(nx,ny);if(!nl)continue;nx/=nl;ny/=nl;
         const along=((p.x-a.x1)*dx+(p.y-a.y1)*dy)/len;
         const signed=(p.x-a.x1)*nx+(p.y-a.y1)*ny;
@@ -165,6 +180,15 @@
         p.x+=nx*(p.radius-signed+0.001);p.y+=ny*(p.radius-signed+0.001);
         const last=this._padTimes.get(a);if(last!==undefined&&this.time-last<0.08)continue;
         const bm=this.options.padBoostMult===undefined?1:this.options.padBoostMult;
+        if(a.kind==='slide'){
+          // מגלשה: the chute redirects whatever arrives into a forward-up launch
+          let tx=dx/len,ty=dy/len;if(tx<0){tx=-tx;ty=-ty;}
+          const ex=tx,ey=Math.min(ty,0)-0.62,el=Math.hypot(ex,ey);
+          const sp=Math.max(Math.hypot(p.vx,p.vy),finite(a.minSpeed,760)*bm);
+          p.vx=ex/el*sp+(a.boostX||0)*bm;p.vy=ey/el*sp+(a.boostY||0)*bm;
+          this._padTimes.set(a,this.time);this._event('pad',{padId:a.id===undefined?i:a.id});
+          continue;
+        }
         if(this._reflect(nx,ny,finite(a.restitution,1.1)*bm,finite(a.minSpeed,640)*bm,(a.boostX||0)*bm,(a.boostY||0)*bm)){
           this._padTimes.set(a,this.time);this._event('pad',{padId:a.id===undefined?i:a.id});
         }
