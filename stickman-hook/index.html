@@ -126,6 +126,8 @@
   .navbtn { width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; font-size: 26px; font-weight: 900;
     background: rgba(255,255,255,.22); color: #fff; display: flex; align-items: center; justify-content: center; transition: transform .1s; }
   .navbtn:hover { transform: scale(1.1); background: rgba(255,255,255,.34); }
+  .navbtn:disabled { opacity: .35; cursor: default; transform: none; }
+  .navbtn svg { width: 26px; height: 26px; }
   .navbtn:disabled { opacity: .3; cursor: default; transform: none; }
   #clear-time { color: #8a80c0; font-weight: 700; font-size: 15px; margin: -18px 0 24px; white-space: pre-line; }
   #clear-stars { font-size: 34px; line-height: 1.1; margin: -8px 0 16px; letter-spacing: 1px; color: #ffd94d; font-weight: 900; text-shadow: 0 2px 0 rgba(0,0,0,.15); }
@@ -188,11 +190,11 @@
   <div class="intro-name" id="intro-name"></div>
   <div class="intro-hint" id="intro-hint"></div>
   <div class="intro-nav">
-    <button class="navbtn" id="btn-prev-lv" aria-label="שלב קודם">›</button>
+    <button class="navbtn" id="btn-prev-lv" aria-label="שלב קודם"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
     <button class="playbtn" id="btn-go" aria-label="התחלה">
       <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
     </button>
-    <button class="navbtn" id="btn-next-lv" aria-label="שלב הבא">‹</button>
+    <button class="navbtn" id="btn-next-lv" aria-label="שלב הבא"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
   </div>
 </div>
 
