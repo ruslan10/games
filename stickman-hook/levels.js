@@ -155,16 +155,30 @@ function buildLevel(name, hint, o) {
       pads.push({ id: 'g' + k, x1: Math.round(anchors[k].x - 65), y1: 745, x2: Math.round(anchors[k].x + 65), y2: 745, boostX: 280, minSpeed: 760 });
     }
   } else if (o.nets === 'tramp') {
-    // Angled spring trampolines as the only recovery - they launch you back
-    // into swing range, but a bad fall is still a fall.
+    // Spring trampolines as the only recovery, in three shapes: tilted pads,
+    // V-shaped ramp pairs that funnel a fall back up, and square box tramps.
     const every = o.trampEvery || 2;
     for (let k = 2; k < anchors.length; k += every) {
-      const tilt = (k % 4 === 0 ? -0.26 : 0.26);
-      const cx = anchors[k].x, cy = 748, hw = 72;
-      pads.push({ id: 't' + k, kind: 'tramp',
-        x1: Math.round(cx - hw * Math.cos(tilt)), y1: Math.round(cy - hw * Math.sin(tilt)),
-        x2: Math.round(cx + hw * Math.cos(tilt)), y2: Math.round(cy + hw * Math.sin(tilt)),
-        boostX: 220, boostY: -720, minSpeed: 880 });
+      const cx = anchors[k].x, cy = 748;
+      if (k % 6 === 0) {
+        // V: two angled ramps meeting low at the center - bounces you up-middle
+        const hw = 88, rise = 46;
+        pads.push({ id: 't' + k + 'a', kind: 'trampV', x1: Math.round(cx - hw), y1: Math.round(cy - rise),
+          x2: Math.round(cx), y2: Math.round(cy + 12), boostX: 60, boostY: -760, minSpeed: 880 });
+        pads.push({ id: 't' + k + 'b', kind: 'trampV', x1: Math.round(cx), y1: Math.round(cy + 12),
+          x2: Math.round(cx + hw), y2: Math.round(cy - rise), boostX: 60, boostY: -760, minSpeed: 880 });
+      } else if (k % 4 !== 0) {
+        // box: square trampoline block with a springy red top
+        pads.push({ id: 't' + k, kind: 'trampBox', x1: Math.round(cx - 70), y1: Math.round(cy),
+          x2: Math.round(cx + 70), y2: Math.round(cy), boostX: 120, boostY: -740, minSpeed: 880 });
+      } else {
+        const tilt = (k % 8 === 0 ? -0.26 : 0.26);
+        const hw = 72;
+        pads.push({ id: 't' + k, kind: 'tramp',
+          x1: Math.round(cx - hw * Math.cos(tilt)), y1: Math.round(cy - hw * Math.sin(tilt)),
+          x2: Math.round(cx + hw * Math.cos(tilt)), y2: Math.round(cy + hw * Math.sin(tilt)),
+          boostX: 220, boostY: -720, minSpeed: 880 });
+      }
     }
   }
   (o.boosts || []).forEach((b, j) => {

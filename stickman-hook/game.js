@@ -31,8 +31,9 @@ const ui = {
   btnPrevLv: $('btn-prev-lv'), btnNextLv: $('btn-next-lv'),
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
-  clearTitle: $('clear-title'), clearTime: $('clear-time'), skins: $('skins'),
+  clearTitle: $('clear-title'), clearTime: $('clear-time'),
   clearStars: $('clear-stars'), skinToast: $('skin-toast'),
+  charsel: $('charsel'), charGrid: $('char-grid'), btnChars: $('btn-chars'), btnCharsClose: $('btn-chars-close'),
 };
 
 /* ---------- persistent state ---------- */
@@ -80,19 +81,45 @@ function applySkin() {
   game.body = SKINS[i].body || 'hog';
   game.playerColors = V.getConfig().colors; // live palette: boot world colors + skin coat
 }
-function renderSkins() {
-  ui.skins.innerHTML = '';
+/* Character cards, concept-sheet style: full avatar, name, lock requirement. */
+function drawAvatar(cv, sk) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = 110, h = 132;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.fillStyle = 'rgba(36,31,58,.28)';
+  c.beginPath(); c.ellipse(w / 2, h - 5, 26, 6, 0, 0, Math.PI * 2); c.fill();
+  V.drawPlayer(c, {
+    x: w / 2, y: h - 30, pose: 'idle', time: 1.7, scale: 1.45, facing: 1,
+    colors: Object.assign({}, COLORS, sk.c), body: sk.body || 'hog',
+  });
+}
+function renderCharGrid() {
+  ui.charGrid.innerHTML = '';
   SKINS.forEach((sk, i) => {
+    const unlocked = skinUnlocked(i);
     const b = document.createElement('button');
-    b.className = 'skin-dot' + (i === store.skin && skinUnlocked(i) ? ' sel' : '') + (skinUnlocked(i) ? '' : ' locked');
-    b.style.background = sk.c.hogBlue;
-    b.title = sk.name + (skinUnlocked(i) ? '' : sk.stars ? ' (נפתח עם ' + sk.stars + ' כוכבים)' : ' (נפתח בשלב ' + sk.at + ')');
-    b.textContent = skinUnlocked(i) ? '' : (sk.stars ? sk.stars + '⭐' : sk.at);
+    b.className = 'char-card' + (i === store.skin && unlocked ? ' sel' : '') + (unlocked ? '' : ' locked');
+    const cv = document.createElement('canvas');
+    b.appendChild(cv);
+    drawAvatar(cv, sk);
+    const nm = document.createElement('div');
+    nm.className = 'char-name';
+    nm.textContent = sk.name;
+    b.appendChild(nm);
+    if (!unlocked) {
+      const req = document.createElement('div');
+      req.className = 'char-req';
+      req.textContent = sk.stars ? sk.stars + '⭐' : 'שלב ' + sk.at;
+      b.appendChild(req);
+    }
+    b.title = sk.name + (unlocked ? '' : sk.stars ? ' (נפתח עם ' + sk.stars + ' כוכבים)' : ' (נפתח בשלב ' + sk.at + ')');
     b.addEventListener('click', () => {
       if (!skinUnlocked(i)) return;
-      store.skin = i; applySkin(); renderSkins(); sfx.click();
+      store.skin = i; applySkin(); renderCharGrid(); sfx.click();
     });
-    ui.skins.appendChild(b);
+    ui.charGrid.appendChild(b);
   });
 }
 
@@ -183,10 +210,11 @@ function setState(s) {
   ui.clear.classList.toggle('show', s === 'clear');
   ui.pause.classList.toggle('show', s === 'paused');
   if (s !== 'levelsel') ui.levelsel.classList.remove('show');
+  ui.charsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
   if (s === 'menu') {
     ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ⭐ ' + store.totalStars() + '/' + (LEVELS.length * 3);
-    renderSkins();
+    renderCharGrid();
     // celebrate the first newly-unlocked skin not yet announced
     for (let i = 1; i < SKINS.length; i++) {
       if (skinUnlocked(i) && !localStorage.getItem('sh_seen_skin_' + i)) {
@@ -340,6 +368,8 @@ function renderLevelGrid() {
   });
 }
 function openLevelSel() { renderLevelGrid(); ui.levelsel.classList.add('show'); sfx.click(); }
+ui.btnChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
+ui.btnCharsClose.addEventListener('click', () => { ui.charsel.classList.remove('show'); sfx.click(); });
 ui.btnLevels.addEventListener('click', openLevelSel);
 ui.btnPauseLevels.addEventListener('click', openLevelSel);
 ui.btnLevelsClose.addEventListener('click', () => { ui.levelsel.classList.remove('show'); sfx.click(); });
@@ -374,7 +404,7 @@ function drawPads(L) {
     ctx.save();
     ctx.translate(p.x1, p.y1);
     ctx.rotate(ang);
-    if (p.kind === 'tramp') {
+    if (p.kind === 'tramp' || p.kind === 'trampV') {
       // angled spring trampoline: dark base, red springy top with white shine
       ctx.fillStyle = '#241f3a';
       roundRect(0, -6, len, 22, 10); ctx.fill();
@@ -388,6 +418,28 @@ function drawPads(L) {
       roundRect(3, -15, len - 6, 13, 8); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       roundRect(8, -13, len - 16, 5, 3); ctx.fill();
+      if (p.kind === 'trampV') {
+        // small hinge caps so the two ramps read as one V
+        ctx.fillStyle = '#241f3a';
+        ctx.beginPath(); ctx.arc(0, 5, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(len, 5, 9, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (p.kind === 'trampBox') {
+      // square trampoline block: dark box, spring coil inside, red top
+      ctx.fillStyle = '#241f3a';
+      roundRect(-8, 0, len + 16, 56, 10); ctx.fill();
+      ctx.strokeStyle = '#4a4180'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      for (let x = 14; x < len - 6; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 48); ctx.lineTo(x + 7, 34); ctx.lineTo(x, 20); ctx.lineTo(x + 7, 8);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#3a3358';
+      roundRect(-8, 44, len + 16, 12, 8); ctx.fill();
+      ctx.fillStyle = '#ff4d5e';
+      roundRect(-12, -14, len + 24, 15, 9); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      roundRect(-6, -12, len + 12, 5, 3); ctx.fill();
     } else {
       ctx.fillStyle = '#241f3a';
       roundRect(0, -8, len, 26, 13); ctx.fill();
@@ -631,6 +683,6 @@ window.__game = {
   get stars() { return game.stars; },
   totalStars: () => store.totalStars(),
   get body() { return game.body; },
-  setSkin: i => { store.skin = i; applySkin(); renderSkins(); },
+  setSkin: i => { store.skin = i; applySkin(); renderCharGrid(); },
 };
 })();
