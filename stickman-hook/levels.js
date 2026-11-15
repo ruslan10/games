@@ -18,10 +18,12 @@ window.StickmanLevels = [
       { id: 'p1', x1: 260, y1: 640, x2: 400, y2: 640, boostX: 320, minSpeed: 800 },
       { id: 'g1', x1: 480, y1: 720, x2: 1230, y2: 720, boostX: 220, minSpeed: 700 },
     ],
-    stars: [
-      { x: 520, y: 350 },
-      { x: 980, y: 380 },
-      { x: 1240, y: 300 },
+        fruits: [
+      { x: 520, y: 350, v: 5, k: 'apple' },
+      { x: 760, y: 430, v: 5, k: 'orange' },
+      { x: 980, y: 380, v: 5, k: 'banana' },
+      { x: 1160, y: 250, v: 10, k: 'melon' },
+      { x: 1290, y: 350, v: 5, k: 'apple' },
     ],
     finishX: 1400, killY: 1050,
   },
@@ -37,10 +39,13 @@ window.StickmanLevels = [
       { id: 'p1', x1: 230, y1: 640, x2: 370, y2: 640, boostX: 330, minSpeed: 810 },
       { id: 'g1', x1: 450, y1: 720, x2: 1300, y2: 720, boostX: 230, minSpeed: 700 },
     ],
-    stars: [
-      { x: 490, y: 330 },
-      { x: 870, y: 340 },
-      { x: 1260, y: 250 },
+        fruits: [
+      { x: 490, y: 330, v: 5, k: 'banana' },
+      { x: 700, y: 480, v: 5, k: 'apple' },
+      { x: 870, y: 340, v: 5, k: 'orange' },
+      { x: 1060, y: 120, v: 10, k: 'melon' },
+      { x: 1260, y: 250, v: 5, k: 'banana' },
+      { x: 1150, y: 600, v: 20, k: 'cherry' },
     ],
     finishX: 1460, killY: 1050,
   },
@@ -61,10 +66,14 @@ window.StickmanLevels = [
       { id: 'g2', x1: 1130, y1: 730, x2: 1420, y2: 730, boostX: 230, minSpeed: 700 },
       { id: 'g3', x1: 1500, y1: 730, x2: 1740, y2: 730, boostX: 230, minSpeed: 700 },
     ],
-    stars: [
-      { x: 520, y: 120 },
-      { x: 880, y: 420 },
-      { x: 1630, y: 330 },
+        fruits: [
+      { x: 520, y: 120, v: 10, k: 'melon' },
+      { x: 700, y: 400, v: 5, k: 'apple' },
+      { x: 880, y: 420, v: 5, k: 'orange' },
+      { x: 1260, y: 300, v: 5, k: 'banana' },
+      { x: 1450, y: 130, v: 10, k: 'melon' },
+      { x: 1630, y: 330, v: 5, k: 'apple' },
+      { x: 1000, y: 620, v: 20, k: 'cherry' },
     ],
     finishX: 2040, killY: 1100,
   },
@@ -86,10 +95,15 @@ window.StickmanLevels = [
       { id: 'g3', x1: 1520, y1: 730, x2: 1730, y2: 730, boostX: 240, minSpeed: 720 },
       { id: 'g4', x1: 1900, y1: 730, x2: 2120, y2: 730, boostX: 240, minSpeed: 720 },
     ],
-    stars: [
-      { x: 840, y: 120 },
-      { x: 1240, y: 400 },
-      { x: 1970, y: 130 },
+        fruits: [
+      { x: 500, y: 420, v: 5, k: 'orange' },
+      { x: 840, y: 120, v: 10, k: 'melon' },
+      { x: 1050, y: 400, v: 5, k: 'apple' },
+      { x: 1240, y: 400, v: 5, k: 'banana' },
+      { x: 1600, y: 380, v: 5, k: 'orange' },
+      { x: 1970, y: 130, v: 10, k: 'melon' },
+      { x: 1420, y: 620, v: 20, k: 'cherry' },
+      { x: 2300, y: 400, v: 5, k: 'banana' },
     ],
     finishX: 2520, killY: 1100,
   },
@@ -111,10 +125,16 @@ window.StickmanLevels = [
       { id: 'g2', x1: 1550, y1: 740, x2: 1760, y2: 740, boostX: 230, minSpeed: 700 },
       { id: 'g3', x1: 1920, y1: 740, x2: 2130, y2: 740, boostX: 230, minSpeed: 700 },
     ],
-    stars: [
-      { x: 880, y: 120 },
-      { x: 1260, y: 420 },
-      { x: 1990, y: 120 },
+        fruits: [
+      { x: 500, y: 350, v: 5, k: 'apple' },
+      { x: 880, y: 120, v: 10, k: 'melon' },
+      { x: 1070, y: 440, v: 5, k: 'banana' },
+      { x: 1260, y: 420, v: 5, k: 'orange' },
+      { x: 1630, y: 350, v: 5, k: 'apple' },
+      { x: 1810, y: 110, v: 10, k: 'melon' },
+      { x: 1990, y: 120, v: 10, k: 'melon' },
+      { x: 1440, y: 630, v: 20, k: 'cherry' },
+      { x: 2300, y: 380, v: 5, k: 'banana' },
     ],
     finishX: 2560, killY: 1120,
   },
@@ -185,21 +205,24 @@ function buildLevel(name, hint, o) {
     const ax = anchors[b[0]].x + 140;
     pads.push({ id: 'b' + j, x1: Math.round(ax), y1: 700, x2: Math.round(ax + 130), y2: 700, boostX: b[1] || 330, minSpeed: 800 });
   });
-  // 3 collectible stars per level: high floats reward a lofty release,
-  // low dives skim the net line. Off the golden path, never on it.
-  const stars = [];
-  const fr = [0.28, 0.55, 0.82];
-  for (let j = 0; j < 3; j++) {
-    const k = Math.max(1, Math.min(anchors.length - 1, Math.round(fr[j] * (anchors.length - 1))));
+  // Collectible fruits, one per anchor gap, values scaled by risk:
+  // 5pt fruit on the natural arc, 10pt melons on high floats,
+  // 20pt cherries on dangerous low dives near the kill line.
+  const fruits = [];
+  const lowK = ['apple', 'orange', 'banana'];
+  for (let k = 1; k < anchors.length; k++) {
     const a = anchors[k - 1], b = anchors[k];
     const mx = (a.x + b.x) / 2;
-    const my = j % 2 === 0
-      ? Math.max(40, Math.min(a.y, b.y) - 120)
-      : Math.max(a.y, b.y) + 320;
-    stars.push({ x: Math.round(mx), y: Math.round(my) });
+    const g = (k - 1) % 4;
+    let fy, v, kind;
+    if (g === 1) { fy = Math.max(40, Math.min(a.y, b.y) - 130); v = 10; kind = 'melon'; }
+    else if (g === 3) { fy = Math.max(a.y, b.y) + 330; v = 20; kind = 'cherry'; }
+    else if (g === 2) { fy = (a.y + b.y) / 2 + 210; v = 5; kind = lowK[k % 3]; }
+    else { fy = (a.y + b.y) / 2 + 120; v = 5; kind = lowK[k % 3]; }
+    fruits.push({ x: Math.round(mx), y: Math.round(fy), v: v, k: kind });
   }
   return { name: name, hint: hint || '', start: { anchorId: 'a1', rope: o.rope || 360 }, assist: o.assist || 240,
-    anchors: anchors, pads: pads, stars: stars, finishX: Math.round(lastX + 180 + (o.fin || 0)), killY: o.killY || 1000 };
+    anchors: anchors, pads: pads, fruits: fruits, finishX: Math.round(lastX + 180 + (o.fin || 0)), killY: o.killY || 1000 };
 }
 
 const GENERATED = [

@@ -56,7 +56,7 @@
     reset(p){
       this.player=Object.assign({},this._initial,p);this.player.radius=Math.max(1,this.player.radius);
       this.rope=null;this.held=false;this.tick=0;this.time=0;this.accumulator=0;
-      this.events=[];this._padTimes=new Map();this._contact=false;this._airHops=1;
+      this.events=[];this._padTimes=new Map();this._contact=false;this._airHops=this.options.airHops===undefined?1:this.options.airHops;
       this.camera={x:this.player.x+this.options.cameraOffsetX,y:this.player.y+this.options.cameraOffsetY};
       return this;
     }
@@ -76,7 +76,7 @@
       const p=this.player,o=this.options,dx=p.x-a.x,dy=p.y-a.y,d=Math.hypot(dx,dy);
       if(d>o.catchRadius)return false;
       const len=clamp(finite(length,d),o.minRope,o.maxRope);
-      this.rope={anchor:a,length:len};this._solveRope();this._airHops=1;
+      this.rope={anchor:a,length:len};this._solveRope();this._airHops=this.options.airHops===undefined?1:this.options.airHops;
       this._event('attach',{anchorId:a.id,length:len});return true;
     }
     release(){
@@ -158,7 +158,8 @@
         if(p.vx*nx+p.vy*ny>=0)continue;
         p.x+=nx*(p.radius-signed+0.001);p.y+=ny*(p.radius-signed+0.001);
         const last=this._padTimes.get(a);if(last!==undefined&&this.time-last<0.08)continue;
-        if(this._reflect(nx,ny,finite(a.restitution,1.1),finite(a.minSpeed,640),a.boostX,a.boostY)){
+        const bm=this.options.padBoostMult===undefined?1:this.options.padBoostMult;
+        if(this._reflect(nx,ny,finite(a.restitution,1.1)*bm,finite(a.minSpeed,640)*bm,(a.boostX||0)*bm,(a.boostY||0)*bm)){
           this._padTimes.set(a,this.time);this._event('pad',{padId:a.id===undefined?i:a.id});
         }
       }
@@ -186,6 +187,7 @@
         }
         const drag=Math.exp(-Math.max(0,o.airDrag)*s);p.vx*=drag;p.vy*=drag;
         p.vy=Math.min(p.vy,o.terminalVelocity);
+        if(!this.rope&&o.maxFallSpeed!==undefined)p.vy=Math.min(p.vy,o.maxFallSpeed);
         const v=Math.hypot(p.vx,p.vy);if(v>o.maxSpeed){p.vx*=o.maxSpeed/v;p.vy*=o.maxSpeed/v;}
         p.x+=p.vx*s;p.y+=p.vy*s;
         this._pads(prev);this._groundNormal=null;
@@ -196,7 +198,7 @@
         if(this._groundNormal){const n=this._groundNormal,tx=-n.y,ty=n.x,vt=p.vx*tx+p.vy*ty;
           const f=1-Math.exp(-o.terrainFriction*60*s);p.vx-=vt*tx*f;p.vy-=vt*ty*f;}
       }
-      if(contact&&!this._contact)this._event('terrain',{});this._contact=contact;if(this._contact)this._airHops=1;
+      if(contact&&!this._contact)this._event('terrain',{});this._contact=contact;if(this._contact)this._airHops=o.airHops===undefined?1:o.airHops;
       const cx=p.x+o.cameraOffsetX+clamp(p.vx*o.cameraLookahead,-o.cameraMaxLookahead,o.cameraMaxLookahead);
       const cy=p.y+o.cameraOffsetY+clamp(p.vy*o.cameraLookahead*0.45,-o.cameraMaxLookahead/2,o.cameraMaxLookahead/2);
       const k=1-Math.exp(-o.cameraSharpness*h);this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;

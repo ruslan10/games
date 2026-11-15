@@ -50,30 +50,48 @@ const store = {
   set done(v) { localStorage.setItem('sh_done', v ? '1' : '0'); },
   best(i) { const v = +(localStorage.getItem('sh_best_' + i) || 0); return v > 0 ? v : null; },
   setBest(i, t) { localStorage.setItem('sh_best_' + i, t); },
-  stars(i) { return +(localStorage.getItem('sh_stars_' + i) || 0); },
-  setStars(i, n) { localStorage.setItem('sh_stars_' + i, n); },
+  stars(i) { return +(localStorage.getItem('sh_stars_' + i) || 0); },           // legacy, grandfather reads only
   totalStars() { let t = 0; for (let i = 0; i < LEVELS.length; i++) t += this.stars(i); return t; },
+  pts(i) { return +(localStorage.getItem('sh_pts_' + i) || 0); },              // best fruit points per level
+  setPts(i, n) { localStorage.setItem('sh_pts_' + i, n); },
+  totalPts() { let t = 0; for (let i = 0; i < LEVELS.length; i++) t += this.pts(i); return t; },
 };
 
-/* ---------- unlockable hero skins (poki weekly-skins spirit) ---------- */
+/* ---------- unlockable hero skins (poki weekly-skins spirit) ----------
+   Unlocks come from total fruit points now; `at` (level) and `oldStars`
+   stay as grandfather rules so existing players never lose a skin. */
+const ABILITIES = {
+  hog:     'מאוזן וזריז בכל מצב',
+  super:   'עף רחוק ומהר בסיום השלב',
+  bean:    'קפיצת אוויר כפולה',
+  fox:     'מגליש לאט באוויר עם הזנבות',
+  echidna: 'קופץ גבוה מטרמפולינות',
+};
 const SKINS = [
-  { name: 'כחול', at: 1,  c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
-  { name: 'אש',   at: 5,  c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'ליים', at: 10, c: { hogBlue: '#4ec94f', hogBlueD: '#2f9e35', hogBlueL: '#a9f0a5' } },
-  { name: 'סגול', at: 15, c: { hogBlue: '#a05ce8', hogBlueD: '#7c3cc6', hogBlueL: '#d6b2ff' } },
-  { name: 'זהב',  at: 20, c: { hogBlue: '#ffb020', hogBlueD: '#d98c08', hogBlueL: '#ffe08a' } },
-  { name: 'ורוד', at: 25, c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
-  /* character skins (original art, palette-evoked), unlocked by total stars */
-  { name: 'גיבור על', stars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
-  { name: 'שותף חלל', stars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'שועל', stars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
-  { name: 'איכידנה', stars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
+  { name: 'כחול', pts: 0,   at: 1,  c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
+  { name: 'אש',   pts: 30,  at: 5,  c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'ליים', pts: 80,  at: 10, c: { hogBlue: '#4ec94f', hogBlueD: '#2f9e35', hogBlueL: '#a9f0a5' } },
+  { name: 'סגול', pts: 150, at: 15, c: { hogBlue: '#a05ce8', hogBlueD: '#7c3cc6', hogBlueL: '#d6b2ff' } },
+  { name: 'זהב',  pts: 250, at: 20, c: { hogBlue: '#ffb020', hogBlueD: '#d98c08', hogBlueL: '#ffe08a' } },
+  { name: 'ורוד', pts: 400, at: 25, c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+  /* character skins (original art, palette-evoked), unlocked by total points */
+  { name: 'גיבור על', pts: 120, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
+  { name: 'שותף חלל', pts: 300, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'שועל', pts: 550, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
+  { name: 'איכידנה', pts: 800, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
 ];
 function skinUnlocked(i) {
   const sk = SKINS[i];
+  if (store.totalPts() >= (sk.pts || 0)) return true;
   if (sk.at && store.level >= sk.at) return true;
-  if (sk.stars && store.totalStars() >= sk.stars) return true;
+  if (sk.oldStars && store.totalStars() >= sk.oldStars) return true;
   return false;
+}
+function nextSkinGoal() {
+  for (let i = 0; i < SKINS.length; i++) {
+    if (!skinUnlocked(i) && SKINS[i].pts !== undefined) return SKINS[i];
+  }
+  return null;
 }
 function applySkin() {
   const i = skinUnlocked(store.skin) ? store.skin : 0;
@@ -108,13 +126,17 @@ function renderCharGrid() {
     nm.className = 'char-name';
     nm.textContent = sk.name;
     b.appendChild(nm);
+    const ab = document.createElement('div');
+    ab.className = 'char-ability';
+    ab.textContent = ABILITIES[sk.body || 'hog'];
+    b.appendChild(ab);
     if (!unlocked) {
       const req = document.createElement('div');
       req.className = 'char-req';
-      req.textContent = sk.stars ? sk.stars + '⭐' : 'שלב ' + sk.at;
+      req.textContent = sk.pts ? sk.pts + ' נק׳' : 'שלב ' + sk.at;
       b.appendChild(req);
     }
-    b.title = sk.name + (unlocked ? '' : sk.stars ? ' (נפתח עם ' + sk.stars + ' כוכבים)' : ' (נפתח בשלב ' + sk.at + ')');
+    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (unlocked ? '' : ' (נפתח ב-' + (sk.pts || 0) + ' נקודות)');
     b.addEventListener('click', () => {
       if (!skinUnlocked(i)) return;
       store.skin = i; applySkin(); renderCharGrid(); sfx.click();
@@ -172,20 +194,27 @@ const game = {
   lastPose: null,
   shake: 0,
   playTime: 0,
-  stars: [],
-  runStars: 0,
+  fruits: [],
+  runPts: 0,
+  pops: [],
   body: 'hog',
   toastTimer: 0,
 };
 
 function buildWorld() {
   const L = game.level;
-  game.world = new P.World({
+  /* character abilities: distinct physics per hero, default hog untouched */
+  const abil = {};
+  if (game.body === 'super') { abil.assist = Math.round((L.assist || 240) * 1.15); abil.assistSpeed = 1000; }
+  if (game.body === 'bean') abil.airHops = 2;
+  if (game.body === 'fox') abil.maxFallSpeed = 500;
+  if (game.body === 'echidna') abil.padBoostMult = 1.3;
+  game.world = new P.World(Object.assign({
     assist: L.assist || 240, assistSpeed: 900,
     anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
       boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640 })),
-  });
+  }, abil));
   const a = L.anchors.find(a => a.id === L.start.anchorId);
   const off = 130, dy = Math.sqrt(L.start.rope * L.start.rope - off * off);
   game.world.reset({ x: a.x - off, y: a.y + dy });
@@ -193,8 +222,9 @@ function buildWorld() {
   game.world.camera.x = a.x; game.world.camera.y = a.y + 260;
   game.levelStartX = a.x - 100;
   game.particles.clear();
-  game.stars = (L.stars || []).map(st => ({ x: st.x, y: st.y, taken: false }));
-  game.runStars = 0;
+  game.fruits = (L.fruits || []).map(f => ({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false }));
+  game.runPts = 0;
+  game.pops = [];
 }
 
 function loadLevel(i) {
@@ -213,7 +243,7 @@ function setState(s) {
   ui.charsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
   if (s === 'menu') {
-    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ⭐ ' + store.totalStars() + '/' + (LEVELS.length * 3);
+    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ' + store.totalPts() + ' נקודות  •  ⭐ ' + Math.floor(store.totalPts() / 100);
     renderCharGrid();
     // celebrate the first newly-unlocked skin not yet announced
     for (let i = 1; i < SKINS.length; i++) {
@@ -238,19 +268,26 @@ function setState(s) {
     const last = game.levelIndex >= LEVELS.length - 1;
     ui.clearTitle.textContent = last ? 'כל הכבוד! סיימת את כל השלבים!' : 'השלב הושלם!';
     ui.clearStars.innerHTML = '';
-    for (let j = 0; j < 3; j++) {
-      const sp = document.createElement('span');
-      sp.className = 'clear-star' + (j < game.runStars ? ' on' : '');
-      sp.textContent = '★';
-      sp.style.animationDelay = (0.25 + j * 0.22) + 's';
-      ui.clearStars.appendChild(sp);
+    const pt = document.createElement('span');
+    pt.className = 'clear-star on';
+    pt.textContent = '+' + game.runPts + ' נקודות';
+    ui.clearStars.appendChild(pt);
+    if (game.newPtsBest && game.runPts > 0) {
+      const nb = document.createElement('div');
+      nb.className = 'clear-newbest';
+      nb.textContent = '🏆 שיא נקודות חדש בשלב!';
+      ui.clearStars.appendChild(nb);
     }
     ui.btnNext.textContent = last ? 'שחקו שוב' : 'השלב הבא';
-    ui.clearPct.textContent = store.pct + '%';
-    ui.clearTime.textContent = game.lastTime
-      ? 'זמן: ' + game.lastTime + 'שנ' + (game.newBest ? ' 🏆 שיא חדש!' : (store.best(game.levelIndex) ? ' | שיא: ' + store.best(game.levelIndex) + 'שנ' : ''))
-      : '';
-    requestAnimationFrame(() => { ui.clearFill.style.width = store.pct + '%'; });
+    const tot = store.totalPts();
+    const goal = nextSkinGoal();
+    ui.clearPct.textContent = 'סה"כ: ' + tot + ' נקודות  •  ⭐ ' + Math.floor(tot / 100);
+    ui.clearTime.textContent = (game.lastTime
+      ? 'זמן: ' + game.lastTime + 'שנ' + (game.newBest ? ' 🏆 שיא זמן!' : (store.best(game.levelIndex) ? ' | שיא: ' + store.best(game.levelIndex) + 'שנ' : ''))
+      : '')
+      + (goal ? '\nהיעד הבא: ' + goal.name + ' ב-' + goal.pts + ' נק׳ (חסרו ' + Math.max(0, goal.pts - tot) + ')' : '\nכל הדמויות נפתחו! 🎉');
+    const fillTo = goal ? Math.max(4, Math.min(100, 100 * tot / goal.pts)) : 100;
+    requestAnimationFrame(() => { ui.clearFill.style.width = fillTo + '%'; });
   }
 }
 
@@ -280,7 +317,8 @@ function win() {
   game.newBest = !prevBest || t < prevBest;
   if (game.newBest) store.setBest(game.levelIndex, Math.round(t * 10) / 10);
   game.lastTime = Math.round(t * 10) / 10;
-  if (game.runStars > store.stars(game.levelIndex)) store.setStars(game.levelIndex, game.runStars);
+  game.newPtsBest = game.runPts > store.pts(game.levelIndex);
+  if (game.newPtsBest) store.setPts(game.levelIndex, game.runPts);
   if (game.levelIndex >= LEVELS.length - 1) store.done = true;
   store.level = Math.min(game.levelIndex + 2, LEVELS.length);
   store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
@@ -288,9 +326,10 @@ function win() {
   // superman-style fly-off: launch the hero up and ahead, physics keeps
   // simulating through the clear celebration instead of freezing.
   const pl = game.world.player;
-  pl.vx = Math.max(pl.vx, 760);
-  pl.vy = Math.min(pl.vy, -820);
-  game.clearTimer = 1.6;
+  const hero = game.body === 'super'; // גיבור על: longer, faster fly-off
+  pl.vx = Math.max(pl.vx, hero ? 1000 : 760);
+  pl.vy = Math.min(pl.vy, hero ? -1050 : -820);
+  game.clearTimer = hero ? 2.0 : 1.6;
 }
 
 function fail() {
@@ -347,15 +386,13 @@ function renderLevelGrid() {
     b.textContent = unlocked ? String(i + 1) : '🔒';
     b.disabled = !unlocked;
     if (unlocked) {
-      const got = store.stars(i);
+      const got = store.pts(i);
       const row = document.createElement('span');
       row.className = 'lv-stars';
-      for (let j = 0; j < 3; j++) {
-        const st3 = document.createElement('i');
-        st3.className = j < got ? 'on' : '';
-        st3.textContent = '★';
-        row.appendChild(st3);
-      }
+      const st3 = document.createElement('i');
+      st3.className = got > 0 ? 'on' : '';
+      st3.textContent = got > 0 ? got + ' נק׳' : '—';
+      row.appendChild(st3);
       b.appendChild(row);
     }
     const best = store.best(i);
@@ -466,23 +503,134 @@ function starPath(x, y, r, rot) {
   ctx.closePath();
 }
 
-function drawStars() {
-  for (let i = 0; i < game.stars.length; i++) {
-    const st = game.stars[i];
-    if (st.taken) continue;
-    const pulse = 1 + 0.09 * Math.sin(game.time * 3.2 + i * 2.1);
-    const rot = Math.sin(game.time * 1.6 + i) * 0.22;
+function drawFruit(x, y, k, s2) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s2, s2);
+  if (k === 'apple') {
+    ctx.fillStyle = '#ee3e46';
+    ctx.beginPath(); ctx.arc(-5, 2, 9, 0, Math.PI * 2); ctx.arc(5, 2, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b3252c'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(-5, 2, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(5, 2, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.quadraticCurveTo(2, -12, 5, -15); ctx.stroke();
+    ctx.fillStyle = '#4ec94f';
+    ctx.beginPath(); ctx.ellipse(8, -12, 6, 3, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(-6, -2, 3, 4.5, -0.4, 0, Math.PI * 2); ctx.fill();
+  } else if (k === 'orange') {
+    ctx.fillStyle = '#ff9a2e';
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d97308'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#4ec94f';
+    ctx.beginPath(); ctx.ellipse(4, -12, 5.5, 3, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.beginPath(); ctx.ellipse(-4, -4, 3, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+  } else if (k === 'banana') {
+    ctx.fillStyle = '#ffd93f';
+    ctx.strokeStyle = '#d9a812'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-11, -4);
+    ctx.quadraticCurveTo(-2, 12, 11, -4);
+    ctx.quadraticCurveTo(2, 4, -11, -4);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#7a4a1e';
+    ctx.fillRect(9, -7, 4, 4);
+  } else if (k === 'melon') {
+    ctx.fillStyle = '#39b54a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1e7e34'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,126,52,.8)'; ctx.lineWidth = 2.4;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(i * 8, -10); ctx.quadraticCurveTo(i * 10, 0, i * 8, 10); ctx.stroke();
+    }
+  } else { /* cherry */
+    ctx.strokeStyle = '#4a8f2e'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(-5, 2); ctx.quadraticCurveTo(-2, -10, 6, -14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, 4); ctx.quadraticCurveTo(7, -6, 6, -14); ctx.stroke();
+    ctx.fillStyle = '#e0303a';
+    ctx.beginPath(); ctx.arc(-6, 6, 7.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7, 8, 7.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#a81822'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(-6, 6, 7.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(7, 8, 7.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.arc(-8, 3.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, 5.5, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFruits() {
+  for (let i = 0; i < game.fruits.length; i++) {
+    const f = game.fruits[i];
+    if (f.taken) continue;
+    const pulse = 1 + 0.08 * Math.sin(game.time * 3.2 + i * 2.1);
+    const bob = Math.sin(game.time * 2 + i * 1.3) * 5;
+    const glow = f.v >= 20 ? 'rgba(255,80,80,.6)' : f.v >= 10 ? 'rgba(120,255,140,.5)' : 'rgba(255,220,90,.45)';
     ctx.save();
-    ctx.translate(st.x, st.y + Math.sin(game.time * 2 + i * 1.3) * 5);
-    ctx.rotate(rot);
-    ctx.scale(pulse, pulse);
-    ctx.shadowColor = 'rgba(255, 200, 60, .75)'; ctx.shadowBlur = 16;
-    starPath(0, 0, 20, 0);
-    ctx.fillStyle = '#ffcf3f'; ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.lineWidth = 3; ctx.strokeStyle = '#e09b12'; ctx.stroke();
-    starPath(-4, -6, 7, 0.3);
-    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill();
+    ctx.shadowColor = glow; ctx.shadowBlur = f.v >= 10 ? 16 : 10;
+    drawFruit(f.x, f.y + bob, f.k, pulse);
+    ctx.restore();
+    if (f.v >= 10) { /* value chip so risk/reward reads at a glance */
+      ctx.save();
+      ctx.font = '900 12px Heebo, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(36,31,58,.75)';
+      roundRect(f.x - 12, f.y + bob + 16, 24, 15, 7); ctx.fill();
+      ctx.fillStyle = '#ffd94d';
+      ctx.fillText(String(f.v), f.x, f.y + bob + 24);
+      ctx.restore();
+    }
+  }
+}
+
+function drawPops() {
+  for (const p2 of game.pops) {
+    const a = Math.max(0, 1 - p2.t / 0.9);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = '900 20px Heebo, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(36,31,58,.85)';
+    const yy = p2.y - 24 - p2.t * 46;
+    ctx.strokeText(p2.txt, p2.x, yy);
+    ctx.fillStyle = p2.col;
+    ctx.fillText(p2.txt, p2.x, yy);
+    ctx.restore();
+  }
+}
+
+/* edge cue for trampoline pads sitting off-screen: a red bouncing chevron
+   at the nearest screen edge, clamped to the pad's screen x. */
+function drawPadCues(L, cam) {
+  if (game.state !== 'play' && game.state !== 'intro') return;
+  for (const pd of L.pads) {
+    const cx = (pd.x1 + pd.x2) / 2, cy = (pd.y1 + pd.y2) / 2;
+    const sx = cx - cam.x + W / 2, sy = cy - cam.y + H / 2;
+    if (sy > -60 && sy < H + 60) continue;
+    if (sx < -120 || sx > W + 120) continue;
+    const up = sy <= -60;
+    const edgeY = up ? 30 : H - 34;
+    const hop = Math.abs(Math.sin(game.time * 5)) * 7;
+    const x = Math.max(34, Math.min(W - 34, sx));
+    ctx.save();
+    ctx.translate(x, edgeY + (up ? -hop : hop));
+    ctx.shadowColor = 'rgba(255,60,60,.8)'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ff5252'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    if (up) { ctx.moveTo(-13, 7); ctx.lineTo(0, -7); ctx.lineTo(13, 7); }
+    else { ctx.moveTo(-13, -7); ctx.lineTo(0, 7); ctx.lineTo(13, -7); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    /* second smaller chevron for emphasis */
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    if (up) { ctx.moveTo(-13, 14); ctx.lineTo(0, 1); ctx.lineTo(13, 14); }
+    else { ctx.moveTo(-13, -14); ctx.lineTo(0, -1); ctx.lineTo(13, -14); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
   }
 }
@@ -523,17 +671,18 @@ function drawHUD() {
   ctx.fillStyle = '#ffffff';
   ctx.fillText(String(n), bx - 22, by + bh / 2 + 1);
   ctx.fillText(String(n + 1), bx + bw + 26, by + bh / 2 + 1);
-  // run star counter, top right
+  // run points counter, top right (apple chip + total below)
   const sx = W - 34, sy = narrow ? 90 : 26;
-  ctx.shadowColor = 'rgba(255,200,60,.7)'; ctx.shadowBlur = 8;
-  starPath(sx, sy, 13, 0);
-  ctx.fillStyle = '#ffcf3f'; ctx.fill();
+  ctx.shadowColor = 'rgba(255,220,90,.6)'; ctx.shadowBlur = 8;
+  drawFruit(sx, sy, 'apple', 0.9);
   ctx.shadowBlur = 0;
-  ctx.lineWidth = 2; ctx.strokeStyle = '#e09b12'; ctx.stroke();
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'right';
-  ctx.font = '900 16px Heebo, sans-serif';
-  ctx.fillText(game.runStars + '/' + game.stars.length, sx - 20, sy + 1);
+  ctx.font = '900 17px Heebo, sans-serif';
+  ctx.fillText(String(game.runPts), sx - 20, sy + 1);
+  ctx.font = '700 11px Heebo, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.fillText('סה"כ ' + store.totalPts(), sx + 12, sy + 20);
   ctx.restore();
 }
 
@@ -568,14 +717,17 @@ function frame(ts) {
     game.shake *= Math.exp(-5 * dt);
     if (game.shake < 0.05) game.shake = 0;
     const p = game.world.player;
+    for (const pop of game.pops) pop.t += dt;
+    game.pops = game.pops.filter(pop => pop.t < 0.9);
     if (game.state === 'play') {
-      for (const st2 of game.stars) {
-        if (st2.taken) continue;
-        if (Math.hypot(st2.x - p.x, st2.y - p.y) < 44) {
-          st2.taken = true;
-          game.runStars++;
-          game.particles.confetti(st2.x, st2.y, { count: 16, spread: 90 });
-          game.shake = Math.max(game.shake, 2);
+      for (const f of game.fruits) {
+        if (f.taken) continue;
+        if (Math.hypot(f.x - p.x, f.y - p.y) < 46) {
+          f.taken = true;
+          game.runPts += f.v;
+          game.pops.push({ x: f.x, y: f.y, t: 0, txt: '+' + f.v, col: f.v >= 20 ? '#ff8a8a' : f.v >= 10 ? '#a5f5a9' : '#ffe08a' });
+          game.particles.confetti(f.x, f.y, { count: f.v >= 10 ? 24 : 14, spread: 90 });
+          game.shake = Math.max(game.shake, f.v >= 20 ? 4 : 2);
           sfx.star();
         }
       }
@@ -629,7 +781,8 @@ function render() {
 
   drawFinish(L);
   drawPads(L);
-  drawStars();
+  drawFruits();
+  drawPops();
 
   const rope = st.rope;
   for (const a of L.anchors) {
@@ -660,6 +813,7 @@ function render() {
   game.particles.draw(ctx);
   ctx.restore();
 
+  if (game.state === 'play') drawPadCues(L, cam);
   if (game.state === 'play') drawHUD();
 }
 
@@ -679,9 +833,11 @@ window.__game = {
   startLevel, beginPlay, win, fail,
   setHeld: b => { pointerHeld = !!b; game.world.setHeld(!!b); },
   renderFrame: () => render(),
-  get runStars() { return game.runStars; },
-  get stars() { return game.stars; },
+  get runPts() { return game.runPts; },
+  get fruits() { return game.fruits; },
+  totalPts: () => store.totalPts(),
   totalStars: () => store.totalStars(),
+  ptsOf: i => store.pts(i),
   get body() { return game.body; },
   setSkin: i => { store.skin = i; applySkin(); renderCharGrid(); },
 };
