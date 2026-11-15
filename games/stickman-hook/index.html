@@ -2,355 +2,128 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>סטיקמן הוק</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>סטיקמן הוק - משחקים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
-  html, body {
-    margin: 0; padding: 0; height: 100%;
-    overflow: hidden;
-    background: #7ec8f0;
-    font-family: "Segoe UI", Arial, sans-serif;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  canvas { display: block; }
-  #hud {
-    position: fixed;
-    top: 12px; right: 12px;
-    background: rgba(0,0,0,.45);
-    color: #fff;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 15px;
-    pointer-events: none;
-  }
-  #overlay {
-    position: fixed; inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(10,14,30,.72);
-    color: #fff;
-    text-align: center;
-    padding: 24px;
-  }
-  #overlay.hidden { display: none; }
-  #overlay h1 { font-size: 2.2rem; margin-bottom: 10px; }
-  #overlay p { color: #c9d2f5; max-width: 420px; line-height: 1.7; margin-bottom: 18px; }
-  #overlay button {
-    background: #ffb020;
-    color: #20180a;
-    border: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    padding: 12px 34px;
-    border-radius: 999px;
-    cursor: pointer;
-  }
-  #overlay button:active { transform: scale(.96); }
-  #home {
-    position: fixed;
-    top: 12px; left: 12px;
-    background: rgba(0,0,0,.45);
-    color: #fff;
-    text-decoration: none;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 15px;
-    font-weight: 700;
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Heebo', sans-serif; background: #7b5cff; }
+  #game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 10; }
+  .overlay.show { display: flex; }
+
+  /* ---- menu: teal gradient like the original's menu identity ---- */
+  #menu { background: linear-gradient(180deg, #3fd0c9 0%, #7ee6c8 100%); }
+  .logo { font-size: clamp(44px, 9vw, 88px); font-weight: 900; color: #fff; letter-spacing: 1px;
+    text-shadow: 0 6px 0 rgba(0,0,0,.14); margin-bottom: 6px; }
+  .logo .red { color: #ff4d5e; text-shadow: 0 6px 0 rgba(0,0,0,.16); }
+  .menu-sub { color: rgba(255,255,255,.92); font-size: 19px; font-weight: 700; margin-bottom: 42px; }
+
+  .bigbtn { border: none; cursor: pointer; font-family: inherit; font-weight: 900; color: #fff;
+    background: linear-gradient(180deg, #ff7a5c, #ff4d5e); border-radius: 999px;
+    padding: 18px 58px; font-size: 26px; box-shadow: 0 8px 0 #d8314f, 0 14px 26px rgba(0,0,0,.22);
+    transition: transform .12s, box-shadow .12s; }
+  .bigbtn:hover { transform: translateY(-2px) scale(1.03); }
+  .bigbtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #d8314f, 0 8px 14px rgba(0,0,0,.2); }
+  .bigbtn.small { padding: 13px 40px; font-size: 21px; }
+  #menu-level { margin-top: 20px; color: rgba(255,255,255,.85); font-weight: 700; font-size: 16px; }
+
+  /* ---- intro: violet ---- */
+  #intro { background: linear-gradient(180deg, #6a4de0 0%, #8f7bff 100%); }
+  .intro-level { font-size: clamp(38px, 7vw, 64px); font-weight: 900; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,.16); }
+  .intro-name { color: rgba(255,255,255,.85); font-size: 21px; font-weight: 700; margin: 8px 0 4px; }
+  .intro-hint { color: rgba(255,255,255,.75); font-size: 16px; margin-bottom: 40px; min-height: 22px; }
+  .playbtn { width: 118px; height: 118px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(180deg, #ff7a5c, #ff4d5e); box-shadow: 0 9px 0 #d8314f, 0 16px 30px rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center; transition: transform .12s, box-shadow .12s; }
+  .playbtn:hover { transform: scale(1.06); }
+  .playbtn:active { transform: translateY(5px); box-shadow: 0 3px 0 #d8314f; }
+  .playbtn svg { width: 46px; height: 46px; fill: #fff; margin-right: -8px; }
+
+  /* ---- cleared card ---- */
+  #clear { background: rgba(46, 33, 101, .88); }
+  .card { position: relative; background: #fff; border-radius: 26px; padding: 54px 48px 42px; text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35); overflow: hidden; max-width: 88vw; }
+  .card::before { content: ''; position: absolute; inset: -60%; z-index: 0;
+    background: repeating-conic-gradient(rgba(87,223,196,.22) 0 14deg, rgba(87,223,196,0) 14deg 28deg);
+    animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .card > * { position: relative; z-index: 1; }
+  .clear-title { font-size: 34px; font-weight: 900; color: #4a3ba8; margin-bottom: 18px; }
+  .pct-wrap { background: #ece9fb; border-radius: 999px; height: 26px; width: 260px; max-width: 62vw; margin: 0 auto 8px; overflow: hidden; }
+  .pct-fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #57dfc4, #3fd0c9);
+    transition: width 1s cubic-bezier(.2,.8,.25,1); }
+  .pct-label { color: #8a80c0; font-weight: 700; font-size: 15px; margin-bottom: 30px; }
+
+  /* ---- pause + corner buttons ---- */
+  #paused { background: rgba(46, 33, 101, .72); }
+  .paused-title { color: #fff; font-size: 36px; font-weight: 900; margin-bottom: 26px; }
+  .iconbtn { position: fixed; z-index: 20; width: 52px; height: 52px; border-radius: 14px; border: none; cursor: pointer;
+    background: rgba(36,31,58,.38); color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px); }
+  #btn-pause { top: 14px; left: 14px; }
+  #btn-mute { top: 14px; left: 76px; display: flex !important; }
+  .row { display: flex; gap: 14px; }
+
+  /* ---- fail flash ---- */
+  #failflash { position: fixed; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255,60,80,0) 40%, rgba(255,60,80,.55) 100%); }
+  #failflash.show { animation: flash .55s ease-out; }
+  @keyframes flash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+
+  @media (max-width: 600px) {
+    .bigbtn { padding: 15px 44px; font-size: 22px; }
+    .playbtn { width: 100px; height: 100px; }
+    .card { padding: 42px 28px 32px; }
   }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="hud">שלב <span id="lvl">1</span></div>
-<a id="home" href="../../">🏠 בית</a>
-<div id="overlay">
-  <h1 id="ov-title">🕸️ סטיקמן הוק</h1>
-  <p id="ov-text">לחצו והחזיקו (או מקש רווח) כדי לתפוס נקודת עיגון עם הוו, שחררו כדי לעוף קדימה. הגיעו לדגל הסיום! אם נופלים - מתחילים את השלב מחדש.</p>
-  <button id="ov-btn">התחילו לשחק</button>
+<canvas id="game"></canvas>
+
+<button class="iconbtn" id="btn-pause" aria-label="השהיה">⏸</button>
+<button class="iconbtn" id="btn-mute" aria-label="צליל">🔊</button>
+
+<div class="overlay show" id="menu">
+  <div class="logo">סטיקמן <span class="red">הוק</span></div>
+  <div class="menu-sub">תפסו. נדנדו. עפו.</div>
+  <button class="bigbtn" id="btn-play">שחקו</button>
+  <div id="menu-level">שלב 1 / 8</div>
 </div>
-<script>
-"use strict";
-// סטיקמן הוק - משחק נדנדה מקורי בפיזיקת מטוטלת. כל הקוד והצורות נכתבו מאפס.
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-const hudLvl = document.getElementById("lvl");
-const overlay = document.getElementById("overlay");
-const ovTitle = document.getElementById("ov-title");
-const ovText = document.getElementById("ov-text");
-const ovBtn = document.getElementById("ov-btn");
 
-let W = 0, H = 0, DPR = 1;
-function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = W * DPR; canvas.height = H * DPR;
-  canvas.style.width = W + "px"; canvas.style.height = H + "px";
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-}
-window.addEventListener("resize", resize);
-resize();
+<div class="overlay" id="intro">
+  <div class="intro-level" id="intro-level">שלב 1 / 8</div>
+  <div class="intro-name" id="intro-name"></div>
+  <div class="intro-hint" id="intro-hint"></div>
+  <button class="playbtn" id="btn-go" aria-label="התחלה">
+    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </button>
+</div>
 
-// ---- שלבים: נקודות עיגון (x, y), משטחי קפיצה (x, y, רדיוס), ומיקום הדגל ----
-const LEVELS = [
-  {
-    anchors: [[400,220],[680,190],[960,220],[1240,190],[1520,220],[1800,190]],
-    pads: [[150,500],[820,520],[1380,520]],
-    finish: 1960, spawn: [150, 380]
-  },
-  {
-    anchors: [[420,200],[700,160],[980,230],[1260,170],[1540,240],[1820,170],[2100,220]],
-    pads: [[150,500],[840,520],[1400,540],[1960,520]],
-    finish: 2260, spawn: [150, 380]
-  },
-  {
-    anchors: [[400,180],[640,260],[920,150],[1180,280],[1450,160],[1720,270],[1980,150],[2240,240],[2500,180]],
-    pads: [[150,500],[1060,540],[1840,540]],
-    finish: 2660, spawn: [150, 380]
-  },
-  {
-    anchors: [[420,170],[660,290],[920,150],[1160,300],[1420,160],[1660,300],[1920,150],[2160,280],[2420,160],[2660,250],[2920,170]],
-    pads: [[150,500],[1040,560],[2040,560]],
-    finish: 3080, spawn: [150, 380]
-  }
-];
+<div class="overlay" id="clear">
+  <div class="card">
+    <div class="clear-title" id="clear-title">השלב הושלם!</div>
+    <div class="pct-wrap"><div class="pct-fill" id="clear-fill"></div></div>
+    <div class="pct-label" id="clear-pct">0%</div>
+    <button class="bigbtn small" id="btn-next">השלב הבא</button>
+  </div>
+</div>
 
-const GRAV = 0.5;
-const HOOK_RANGE = 400;
-const AIR_DRAG = 0.998;
-const MAX_SPEED = 22;
+<div class="overlay" id="paused">
+  <div class="paused-title">השהיה</div>
+  <div class="row">
+    <button class="bigbtn small" id="btn-resume">המשך</button>
+    <button class="bigbtn small" id="btn-restart">התחל מחדש</button>
+  </div>
+</div>
 
-const player = { x: 0, y: 0, vx: 0, vy: 0, r: 12 };
-let hook = null;          // {x, y, len}
-let levelIdx = 0;
-let camX = 0;
-let running = false;
-let level = null;
-let won = false;
+<div id="failflash"></div>
 
-function startLevel(i) {
-  levelIdx = i % LEVELS.length;
-  level = LEVELS[levelIdx];
-  player.x = level.spawn[0];
-  player.y = level.spawn[1];
-  player.vx = 3.5; player.vy = 0;
-  hook = null;
-  won = false;
-  hudLvl.textContent = levelIdx + 1;
-}
-
-function nearestAnchor() {
-  let best = null, bestD = HOOK_RANGE;
-  for (const [ax, ay] of level.anchors) {
-    const dx = ax - player.x, dy = ay - player.y;
-    const d = Math.hypot(dx, dy);
-    // מעדיפים עוגנים שמעל השחקן ומעט קדימה
-    if (d < bestD && ay < player.y + 40) { best = { x: ax, y: ay }; bestD = d; }
-  }
-  return best;
-}
-
-function tryHook() {
-  if (!running || hook) return;
-  const a = nearestAnchor();
-  if (a) hook = { x: a.x, y: a.y, len: Math.min(230, Math.max(60, Math.hypot(player.x - a.x, player.y - a.y))) };
-}
-function release() { hook = null; }
-
-function step() {
-  player.vy += GRAV;
-  player.vx *= AIR_DRAG; player.vy *= AIR_DRAG;
-  player.x += player.vx;
-  player.y += player.vy;
-
-  if (hook) {
-    // אילוץ מטוטלת: מרחק קבוע מהעוגן, בלי רכיב מהירות רדיאלי החוצה
-    const dx = player.x - hook.x, dy = player.y - hook.y;
-    const d = Math.hypot(dx, dy) || 0.0001;
-    const nx = dx / d, ny = dy / d;
-    player.x = hook.x + nx * hook.len;
-    player.y = hook.y + ny * hook.len;
-    const vr = player.vx * nx + player.vy * ny;
-    player.vx -= vr * nx;
-    player.vy -= vr * ny;
-    // שאיבה עדינה קדימה בזמן הנדנדה
-    player.vx += 0.08;
-  }
-
-  // גבול מהירות
-  const sp = Math.hypot(player.vx, player.vy);
-  if (sp > MAX_SPEED) { player.vx *= MAX_SPEED / sp; player.vy *= MAX_SPEED / sp; }
-
-  // משטחי קפיצה
-  for (const [px, py, pr] of level.pads.map(p => [p[0], p[1], p[2] || 26])) {
-    const dx = player.x - px, dy = player.y - py;
-    if (Math.hypot(dx, dy) < pr + player.r && player.vy > 0) {
-      player.vy = -14;
-      player.vx += 2.2;
-    }
-  }
-
-  // נפילה - התחלה מחדש
-  if (player.y - camY0() > H + 260 || player.y > 1400) startLevel(levelIdx);
-
-  // ניצחון
-  if (player.x > level.finish && !won) {
-    won = true;
-    running = false;
-    const last = levelIdx === LEVELS.length - 1;
-    ovTitle.textContent = last ? "🏆 כל השלבים הושלמו!" : "✅ שלב " + (levelIdx + 1) + " הושלם!";
-    ovText.textContent = last ? "סיימת את כל " + LEVELS.length + " השלבים. רוצים עוד סיבוב?" : "יופי נדנדה! מוכנים לשלב הבא?";
-    ovBtn.textContent = last ? "שחקו שוב מההתחלה" : "השלב הבא";
-    overlay.classList.remove("hidden");
-    pendingNext = last ? 0 : levelIdx + 1;
-  }
-}
-
-function camY0() { return 0; }
-
-// ---- ציור ----
-function drawStickman(px, py) {
-  ctx.save();
-  ctx.translate(px, py);
-  const ang = Math.atan2(player.vy, Math.abs(player.vx) + 2) * 0.6;
-  ctx.rotate(ang);
-  const t = performance.now() / 120;
-  const swing = hook ? 0 : Math.sin(t) * 0.5;
-  ctx.strokeStyle = "#222"; ctx.lineWidth = 3; ctx.lineCap = "round";
-  // גוף
-  ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 12); ctx.stroke();
-  // ידיים
-  ctx.beginPath();
-  ctx.moveTo(0, 2);
-  ctx.lineTo(8 * Math.cos(swing), 2 + 8 * Math.sin(swing) + (hook ? -6 : 4));
-  ctx.moveTo(0, 2);
-  ctx.lineTo(-8 * Math.cos(swing), 2 - 8 * Math.sin(swing) + (hook ? -6 : 4));
-  ctx.stroke();
-  // רגליים
-  ctx.beginPath();
-  ctx.moveTo(0, 12); ctx.lineTo(7, 22 + 3 * Math.sin(t));
-  ctx.moveTo(0, 12); ctx.lineTo(-7, 22 - 3 * Math.sin(t));
-  ctx.stroke();
-  // ראש
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = "#222";
-  ctx.beginPath(); ctx.arc(2.5, -12, 1.2, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
-
-function draw() {
-  // שמיים
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#8fd3f4"); sky.addColorStop(1, "#e8f7ff");
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-
-  // מצלמה
-  const targetCam = Math.max(0, player.x - W * 0.35);
-  camX += (targetCam - camX) * 0.12;
-
-  ctx.save();
-  ctx.translate(-camX, 0);
-
-  // גבעות רחוקות (פרלקס)
-  ctx.fillStyle = "rgba(120,180,140,.35)";
-  const hillOff = (camX * 0.4) % 600;
-  for (let i = -1; i < W / 600 + 3; i++) {
-    const hx = camX + i * 600 - hillOff;
-    ctx.beginPath();
-    ctx.arc(hx, H + 120, 320, Math.PI, 0);
-    ctx.fill();
-  }
-
-  // עננים (פרלקס איטי)
-  ctx.fillStyle = "rgba(255,255,255,.85)";
-  const cloudOff = (camX * 0.25) % 430;
-  for (let i = -1; i < W / 430 + 3; i++) {
-    const cx = camX + i * 430 - cloudOff;
-    const cy = 60 + ((i * 53) % 120 + 120) % 120;
-    cloud(cx, cy);
-  }
-
-  const viewL = camX - 60, viewR = camX + W + 60;
-
-  // משטחי קפיצה
-  for (const p of level.pads) {
-    const px = p[0], py = p[1], pr = p[2] || 26;
-    if (px < viewL || px > viewR) continue;
-    ctx.fillStyle = "#e6455a";
-    ctx.beginPath(); ctx.arc(px, py, pr, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = "#b32c3f";
-    ctx.fillRect(px - pr, py, pr * 2, 6);
-  }
-
-  // נקודות עיגון
-  for (const [ax, ay] of level.anchors) {
-    if (ax < viewL || ax > viewR) continue;
-    ctx.fillStyle = "#34406b";
-    ctx.beginPath(); ctx.arc(ax, ay, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#ffb020";
-    ctx.beginPath(); ctx.arc(ax, ay, 4, 0, Math.PI * 2); ctx.fill();
-  }
-
-  // דגל סיום
-  const fx = level.finish;
-  ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(fx, 80); ctx.lineTo(fx, H); ctx.stroke();
-  for (let r = 0; r < 12; r++) for (let c = 0; c < 2; c++) {
-    ctx.fillStyle = (r + c) % 2 ? "#111" : "#fff";
-    ctx.fillRect(fx + c * 16, 90 + r * 12, 16, 12);
-  }
-
-  // חבל
-  if (hook) {
-    ctx.strokeStyle = "#5b3a1e"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(player.x, player.y - 6); ctx.lineTo(hook.x, hook.y); ctx.stroke();
-  }
-
-  drawStickman(player.x, player.y);
-  ctx.restore();
-}
-
-function cloud(x, y) {
-  ctx.beginPath();
-  ctx.arc(x, y, 18, 0, Math.PI * 2);
-  ctx.arc(x + 20, y - 8, 22, 0, Math.PI * 2);
-  ctx.arc(x + 44, y, 18, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-let pendingNext = null;
-function loop() {
-  if (running) step();
-  draw();
-  requestAnimationFrame(loop);
-}
-startLevel(0);
-loop();
-
-// ---- קלט ----
-function press(e) { e.preventDefault(); tryHook(); }
-function lift(e) { e.preventDefault(); release(); }
-canvas.addEventListener("pointerdown", press);
-window.addEventListener("pointerup", lift);
-window.addEventListener("pointercancel", lift);
-window.addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); tryHook(); } });
-window.addEventListener("keyup", e => { if (e.code === "Space") release(); });
-
-ovBtn.addEventListener("click", () => {
-  overlay.classList.add("hidden");
-  startLevel(pendingNext === null ? levelIdx : pendingNext);
-  pendingNext = null;
-  running = true;
-});
-
-// hook בדיקה: #play מדלג על מסך הפתיחה
-if (location.hash === "#play") { overlay.classList.add("hidden"); running = true; }
-</script>
+<script src="physics.js"></script>
+<script src="visuals.js"></script>
+<script src="levels.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
