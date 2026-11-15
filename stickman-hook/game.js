@@ -206,6 +206,9 @@ const game = {
   fruits: [],
   runPts: 0,
   pops: [],
+  zoom: 1,              // finish-moment camera zoom (1 = normal)
+  celebration: null,    // { t, wave2 } while 'clearing'
+  rings: [],            // shockwave rings spawned at the finish instant
   body: 'hog',
   toastTimer: 0,
 };
@@ -238,6 +241,7 @@ function buildWorld() {
   game.fruits = (L.fruits || []).map(f => ({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false }));
   game.runPts = 0;
   game.pops = [];
+  game.rings.length = 0; game.zoom = 1; game.celebration = null;
   game.catRescued = false;
 }
 
@@ -344,6 +348,19 @@ function win() {
   pl.vx = Math.max(pl.vx, hero ? 1000 : 760);
   pl.vy = Math.min(pl.vy, hero ? -1050 : -820);
   game.clearTimer = hero ? 2.0 : 1.6;
+  // finish-moment celebration: freeze hit -> slow-mo + zoom-in -> ramp back.
+  // timeline (real seconds): 0-0.09 freeze, 0.09-0.28 ramp in, hold to 0.78,
+  // back to normal by ~1.1. Applied in frame() via timeScale + game.zoom.
+  game.celebration = { t: 0, wave2: false };
+  game.zoom = 1;
+  // cinematic camera: drop the lookahead and drift gently onto the hero
+  const wo = game.world.options;
+  wo.cameraLookahead = 0; wo.cameraMaxLookahead = 0;
+  wo.cameraOffsetX = 0; wo.cameraOffsetY = -10; wo.cameraSharpness = 2.6;
+  game.rings.push({ x: p.x, y: p.y, t: 0, max: 0.7, col: '#ffffff' });
+  game.rings.push({ x: p.x, y: p.y, t: -0.12, max: 0.85, col: '#ffe17b' });
+  game.particles.attach(p.x, p.y - 40, { count: 30 });
+  if (game.runPts > 0) game.pops.push({ x: p.x, y: p.y - 170, t: 0, txt: '+' + game.runPts, col: '#ffe17b', big: true });
 }
 
 function fail() {
@@ -374,6 +391,12 @@ function fail() {
 /* ---------- input ---------- */
 let pointerHeld = false;
 function press() {
+  if (game.state === 'clearing') {
+    // tap to skip the finish celebration straight to the score screen
+    game.celebration = null; game.zoom = 1;
+    game.clearTimer = Math.min(game.clearTimer, 0.05);
+    return;
+  }
   if (game.state !== 'play') return;
   pointerHeld = true;
   const result = game.world.tap();
@@ -638,14 +661,30 @@ function drawFruits() {
   }
 }
 
+function drawRings() {
+  if (!game.rings.length) return;
+  ctx.save();
+  for (const r of game.rings) {
+    if (r.t < 0) continue;
+    const f = r.t / r.max;
+    ctx.globalAlpha = (1 - f) * 0.9;
+    ctx.strokeStyle = r.col;
+    ctx.lineWidth = 2 + 7 * (1 - f);
+    ctx.beginPath(); ctx.arc(r.x, r.y, 26 + f * 250, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawPops() {
   for (const p2 of game.pops) {
     const a = Math.max(0, 1 - p2.t / 0.9);
     ctx.save();
     ctx.globalAlpha = a;
-    ctx.font = '900 20px Heebo, sans-serif';
+    const big = p2.big ? 2.2 : 1;
+    const popScale = big * (p2.t < 0.16 ? 0.4 + 2.6 * (p2.t / 0.16) : p2.t < 0.3 ? 1.8 - 0.8 * ((p2.t - 0.16) / 0.14) : 1);
+    ctx.font = '900 ' + Math.round(20 * popScale) + 'px Heebo, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(36,31,58,.85)';
+    ctx.lineWidth = 4 * big; ctx.strokeStyle = 'rgba(36,31,58,.85)';
     const yy = p2.y - 24 - p2.t * 46;
     ctx.strokeText(p2.txt, p2.x, yy);
     ctx.fillStyle = p2.col;
@@ -756,10 +795,33 @@ function frame(ts) {
   last = now;
   game.time += dt;
 
+  /* finish celebration envelope: freeze hit, slow-mo ramp, camera zoom */
+  let tScale = 1;
+  if (game.state === 'clearing' && game.celebration) {
+    const ct = game.celebration.t += dt;
+    if (ct < 0.09) tScale = 0;
+    else if (ct < 0.28) tScale = 0.28 * (ct - 0.09) / 0.19;
+    else if (ct < 0.78) tScale = 0.28;
+    else if (ct < 1.08) tScale = 0.28 + 0.72 * (ct - 0.78) / 0.30;
+    const eo = f => 1 - (1 - f) * (1 - f);
+    const eio = f => f < 0.5 ? 2 * f * f : 1 - 2 * (1 - f) * (1 - f);
+    if (ct < 0.09) game.zoom = 1;
+    else if (ct < 0.30) game.zoom = 1 + 0.30 * eo((ct - 0.09) / 0.21);
+    else if (ct < 0.80) game.zoom = 1.30;
+    else if (ct < 1.10) game.zoom = 1.30 - 0.30 * eio((ct - 0.80) / 0.30);
+    else game.zoom = 1;
+    if (ct >= 0.4 && !game.celebration.wave2) {
+      game.celebration.wave2 = true;
+      const pl2 = game.world.player;
+      game.particles.confetti(pl2.x, pl2.y - 110, { count: 60 });
+    }
+  }
   const playing = game.state === 'play' || game.state === 'clearing' || game.state === 'failing';
   if (playing) {
-    game.world.update(game.state === 'play' || game.state === 'clearing' ? dt : 0);
-    game.particles.update(dt);
+    game.world.update(game.state === 'play' || game.state === 'clearing' ? dt * tScale : 0);
+    game.particles.update(dt * tScale);
+    for (const r of game.rings) r.t += dt * tScale;
+    game.rings = game.rings.filter(r => r.t < r.max);
     /* events -> juice */
     for (const ev of game.world.drainEvents()) {
       const p = game.world.player;
@@ -778,7 +840,7 @@ function frame(ts) {
     game.shake *= Math.exp(-5 * dt);
     if (game.shake < 0.05) game.shake = 0;
     const p = game.world.player;
-    for (const pop of game.pops) pop.t += dt;
+    for (const pop of game.pops) pop.t += dt * tScale;
     game.pops = game.pops.filter(pop => pop.t < 0.9);
     if (game.state === 'play') {
       const magnet = game.body === 'hog' ? 115 : 46;
@@ -797,7 +859,7 @@ function frame(ts) {
       else if (p.y > game.level.killY) fail();
     } else if (game.state === 'clearing') {
       game.clearTimer -= dt;
-      if (game.clearTimer <= 0) setState('clear');
+      if (game.clearTimer <= 0) { game.zoom = 1; game.celebration = null; game.rings.length = 0; setState('clear'); }
     } else if (game.state === 'failing') {
       game.failTimer -= dt;
       if (game.failTimer <= 0) {
@@ -820,6 +882,14 @@ function render() {
 
   ctx.save();
   if (game.shake > 0) ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
+  const zoom = game.zoom || 1;
+  if (zoom !== 1) {
+    // zoom pivoted on the hero's screen position, not the screen center
+    const px = W / 2 + (st.player.x - cam.x), py = H / 2 + (st.player.y - cam.y);
+    ctx.translate(px, py);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-px, -py);
+  }
   ctx.translate(W / 2 - cam.x, H / 2 - cam.y);
 
   /* speed lines at very high velocity */
@@ -842,6 +912,7 @@ function render() {
   }
 
   drawFinish(L);
+  drawRings();
   drawPads(L);
   drawFruits();
   drawPops();
@@ -896,6 +967,7 @@ window.__game = {
   setHeld: b => { pointerHeld = !!b; game.world.setHeld(!!b); },
   renderFrame: () => render(),
   get runPts() { return game.runPts; },
+  get zoom() { return game.zoom; },
   get fruits() { return game.fruits; },
   totalPts: () => store.totalPts(),
   totalStars: () => store.totalStars(),
