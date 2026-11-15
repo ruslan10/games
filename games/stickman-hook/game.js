@@ -219,6 +219,11 @@ function drawPads(L) {
     roundRect(p.x1, p.y1 - 8, w, 26, 13); ctx.fill();
     ctx.fillStyle = '#ffffff';
     roundRect(p.x1 + 5, p.y1 - 8, w - 10, 7, 4); ctx.fill();
+    // segment notches on long ground bars, like the original
+    if (w > 200) {
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      for (let x = p.x1 + 85; x < p.x2 - 20; x += 85) ctx.fillRect(x, p.y1 + 2, 4, 12);
+    }
     ctx.restore();
   }
 }
@@ -246,11 +251,11 @@ function drawRope(rope, hand) {
 function drawHUD() {
   const n = game.levelIndex + 1;
   const narrow = W < 600;
-  const bw = Math.min(300, W * (narrow ? 0.52 : 0.42)), bh = 16, bx = (W - bw) / 2, by = narrow ? 84 : 20;
+  const bw = Math.max(90, Math.min(170, W * 0.14)), bh = 10, bx = (W - bw) / 2, by = narrow ? 84 : 20;
   const p = game.world.player;
   const t = Math.max(0, Math.min(1, (p.x - game.levelStartX) / (game.level.finishX - game.levelStartX)));
   ctx.save();
-  ctx.font = '700 15px Heebo, sans-serif';
+  ctx.font = '700 14px Heebo, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(36,31,58,.35)';
   roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
