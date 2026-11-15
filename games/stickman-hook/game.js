@@ -245,7 +245,8 @@ function drawRope(rope, hand) {
 
 function drawHUD() {
   const n = game.levelIndex + 1;
-  const bw = Math.min(300, W * 0.42), bh = 16, bx = (W - bw) / 2, by = 20;
+  const narrow = W < 600;
+  const bw = Math.min(300, W * (narrow ? 0.52 : 0.42)), bh = 16, bx = (W - bw) / 2, by = narrow ? 84 : 20;
   const p = game.world.player;
   const t = Math.max(0, Math.min(1, (p.x - game.levelStartX) / (game.level.finishX - game.levelStartX)));
   ctx.save();
