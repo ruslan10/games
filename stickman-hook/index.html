@@ -87,7 +87,7 @@
   #level-grid { display: grid; grid-template-columns: repeat(6, 58px); gap: 12px; max-width: 92vw; margin-bottom: 26px; }
   .lv-btn { width: 58px; height: 58px; border-radius: 16px; border: none; cursor: pointer; font-family: inherit;
     font-weight: 900; font-size: 20px; background: #fff; color: #4a3ba8; box-shadow: 0 5px 0 rgba(36,31,58,.35);
-    transition: transform .1s; position: relative; }
+    transition: transform .1s; position: relative; padding-bottom: 12px; }
   .lv-btn:hover { transform: scale(1.07); }
   .lv-btn.done { background: #57dfc4; color: #14524a; }
   .lv-btn.current { background: #ffb020; color: #5c3a00; }
@@ -102,6 +102,14 @@
   .navbtn:hover { transform: scale(1.1); background: rgba(255,255,255,.34); }
   .navbtn:disabled { opacity: .3; cursor: default; transform: none; }
   #clear-time { color: #8a80c0; font-weight: 700; font-size: 15px; margin: -18px 0 24px; }
+  #clear-stars { font-size: 46px; line-height: 1; margin: -8px 0 16px; letter-spacing: 8px; }
+  .clear-star { color: #ddd8f2; display: inline-block; }
+  .clear-star.on { color: #ffcf3f; text-shadow: 0 0 18px rgba(255,200,60,.8);
+    animation: starpop .45s cubic-bezier(.2,1.6,.4,1) backwards; }
+  @keyframes starpop { 0% { transform: scale(0) rotate(-40deg); } 100% { transform: scale(1) rotate(0); } }
+  .lv-stars { position: absolute; bottom: 2px; left: 0; right: 0; display: flex; justify-content: center; gap: 1px; }
+  .lv-stars i { font-style: normal; font-size: 10px; color: rgba(36,31,58,.22); }
+  .lv-stars i.on { color: #ffb020; text-shadow: 0 0 4px rgba(255,176,32,.6); }
 
   /* ---- fail flash ---- */
   #failflash { position: fixed; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
@@ -155,6 +163,7 @@
 <div class="overlay" id="clear">
   <div class="card">
     <div class="clear-title" id="clear-title">השלב הושלם!</div>
+    <div id="clear-stars"></div>
     <div class="pct-wrap"><div class="pct-fill" id="clear-fill"></div></div>
     <div class="pct-label" id="clear-pct">0%</div>
     <div id="clear-time"></div>

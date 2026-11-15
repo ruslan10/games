@@ -12,12 +12,18 @@ window.StickmanLevels = [
     start: { anchorId: 'a1', rope: 360 },
     anchors: [
       { id: 'a1', x: 330, y: 170 },
+      { id: 'a2', x: 720, y: 205 },
     ],
     pads: [
       { id: 'p1', x1: 260, y1: 640, x2: 400, y2: 640, boostX: 320, minSpeed: 800 },
-      { id: 'g1', x1: 480, y1: 720, x2: 860, y2: 720, boostX: 220, minSpeed: 700 },
+      { id: 'g1', x1: 480, y1: 720, x2: 1230, y2: 720, boostX: 220, minSpeed: 700 },
     ],
-    finishX: 900, killY: 1050,
+    stars: [
+      { x: 520, y: 350 },
+      { x: 980, y: 380 },
+      { x: 1240, y: 300 },
+    ],
+    finishX: 1400, killY: 1050,
   },
   {
     name: 'נדנוד כפול',
@@ -25,12 +31,18 @@ window.StickmanLevels = [
     anchors: [
       { id: 'a1', x: 300, y: 170 },
       { id: 'a2', x: 680, y: 220 },
+      { id: 'a3', x: 1060, y: 180 },
     ],
     pads: [
       { id: 'p1', x1: 230, y1: 640, x2: 370, y2: 640, boostX: 330, minSpeed: 810 },
-      { id: 'g1', x1: 450, y1: 720, x2: 850, y2: 720, boostX: 230, minSpeed: 700 },
+      { id: 'g1', x1: 450, y1: 720, x2: 1300, y2: 720, boostX: 230, minSpeed: 700 },
     ],
-    finishX: 940, killY: 1050,
+    stars: [
+      { x: 490, y: 330 },
+      { x: 870, y: 340 },
+      { x: 1260, y: 250 },
+    ],
+    finishX: 1460, killY: 1050,
   },
   {
     name: 'קפיצת הבטחון',
@@ -39,13 +51,22 @@ window.StickmanLevels = [
       { id: 'a1', x: 300, y: 180 },
       { id: 'a2', x: 690, y: 240 },
       { id: 'a3', x: 1070, y: 190 },
+      { id: 'a4', x: 1450, y: 230 },
+      { id: 'a5', x: 1810, y: 180 },
     ],
     pads: [
       { id: 'p1', x1: 230, y1: 640, x2: 370, y2: 640, boostX: 340, minSpeed: 820 },
       { id: 'p2', x1: 800, y1: 700, x2: 930, y2: 700, boostX: 280, minSpeed: 780 },
       { id: 'g1', x1: 430, y1: 730, x2: 720, y2: 730, boostX: 230, minSpeed: 700 },
+      { id: 'g2', x1: 1130, y1: 730, x2: 1420, y2: 730, boostX: 230, minSpeed: 700 },
+      { id: 'g3', x1: 1500, y1: 730, x2: 1740, y2: 730, boostX: 230, minSpeed: 700 },
     ],
-    finishX: 1290, killY: 1100,
+    stars: [
+      { x: 520, y: 120 },
+      { x: 880, y: 420 },
+      { x: 1630, y: 330 },
+    ],
+    finishX: 2040, killY: 1100,
   },
   {
     name: 'עליות וירידות',
@@ -55,13 +76,22 @@ window.StickmanLevels = [
       { id: 'a2', x: 680, y: 290 },
       { id: 'a3', x: 1050, y: 170 },
       { id: 'a4', x: 1420, y: 250 },
+      { id: 'a5', x: 1790, y: 180 },
+      { id: 'a6', x: 2160, y: 260 },
     ],
     pads: [
       { id: 'p1', x1: 230, y1: 650, x2: 370, y2: 650, boostX: 340, minSpeed: 820 },
       { id: 'g1', x1: 760, y1: 730, x2: 1000, y2: 730, boostX: 240, minSpeed: 720 },
       { id: 'g2', x1: 1150, y1: 730, x2: 1360, y2: 730, boostX: 240, minSpeed: 720 },
+      { id: 'g3', x1: 1520, y1: 730, x2: 1730, y2: 730, boostX: 240, minSpeed: 720 },
+      { id: 'g4', x1: 1900, y1: 730, x2: 2120, y2: 730, boostX: 240, minSpeed: 720 },
     ],
-    finishX: 1620, killY: 1100,
+    stars: [
+      { x: 840, y: 120 },
+      { x: 1240, y: 400 },
+      { x: 1970, y: 130 },
+    ],
+    finishX: 2520, killY: 1100,
   },
   {
     name: 'המעבר הצר',
@@ -71,13 +101,22 @@ window.StickmanLevels = [
       { id: 'a2', x: 690, y: 150 },
       { id: 'a3', x: 1070, y: 290 },
       { id: 'a4', x: 1440, y: 170 },
+      { id: 'a5', x: 1810, y: 150 },
+      { id: 'a6', x: 2180, y: 240 },
     ],
     pads: [
       { id: 'p1', x1: 230, y1: 640, x2: 370, y2: 640, boostX: 350, minSpeed: 830 },
       { id: 'p2', x1: 1180, y1: 730, x2: 1310, y2: 730, boostX: 300, minSpeed: 780 },
       { id: 'g1', x1: 450, y1: 740, x2: 700, y2: 740, boostX: 230, minSpeed: 700 },
+      { id: 'g2', x1: 1550, y1: 740, x2: 1760, y2: 740, boostX: 230, minSpeed: 700 },
+      { id: 'g3', x1: 1920, y1: 740, x2: 2130, y2: 740, boostX: 230, minSpeed: 700 },
     ],
-    finishX: 1660, killY: 1120,
+    stars: [
+      { x: 880, y: 120 },
+      { x: 1260, y: 420 },
+      { x: 1990, y: 120 },
+    ],
+    finishX: 2560, killY: 1120,
   },
 ];
 
@@ -132,36 +171,49 @@ function buildLevel(name, hint, o) {
     const ax = anchors[b[0]].x + 140;
     pads.push({ id: 'b' + j, x1: Math.round(ax), y1: 700, x2: Math.round(ax + 130), y2: 700, boostX: b[1] || 330, minSpeed: 800 });
   });
+  // 3 collectible stars per level: high floats reward a lofty release,
+  // low dives skim the net line. Off the golden path, never on it.
+  const stars = [];
+  const fr = [0.28, 0.55, 0.82];
+  for (let j = 0; j < 3; j++) {
+    const k = Math.max(1, Math.min(anchors.length - 1, Math.round(fr[j] * (anchors.length - 1))));
+    const a = anchors[k - 1], b = anchors[k];
+    const mx = (a.x + b.x) / 2;
+    const my = j % 2 === 0
+      ? Math.max(40, Math.min(a.y, b.y) - 120)
+      : Math.max(a.y, b.y) + 320;
+    stars.push({ x: Math.round(mx), y: Math.round(my) });
+  }
   return { name: name, hint: hint || '', start: { anchorId: 'a1', rope: o.rope || 360 }, assist: o.assist || 240,
-    anchors: anchors, pads: pads, finishX: Math.round(lastX + 180 + (o.fin || 0)), killY: o.killY || 1000 };
+    anchors: anchors, pads: pads, stars: stars, finishX: Math.round(lastX + 180 + (o.fin || 0)), killY: o.killY || 1000 };
 }
 
 const GENERATED = [
-  buildLevel('מאזניים', 'טרמפולינות אדומות מקפיצות חזק!', { n: 5, gap: [408, 425], dys: [-1, 1], amp: 105, nets: 'sparse', assist: 220, killY: 1010 }),
-  buildLevel('קפיצת טרמפולינה', '', { n: 5, gap: [410, 428], dys: [1, -1, 0.8], amp: 108, nets: 'tramp', assist: 220, killY: 1010 }),
-  buildLevel('צד שני', '', { n: 5, gap: [412, 430], dys: [-1, 1, -1], amp: 110, nets: 'tramp', assist: 220, killY: 1000 }),
-  buildLevel('עולים בקצב', '', { n: 6, gap: [412, 428], dys: [1, -1], amp: 105, nets: 'sparse', assist: 210, killY: 1000 }),
-  buildLevel('גלים', '', { n: 5, gap: [415, 432], dys: [-1, 1, 1], amp: 112, nets: 'tramp', assist: 210, killY: 990 }),
-  buildLevel('מדרגות', '', { n: 6, gap: [415, 430], dys: [1, 0, -1], amp: 115, nets: 'tramp', assist: 200, killY: 990 }),
-  buildLevel('זיגזג', '', { n: 6, gap: [418, 435], dys: [-1, 1, -1, 1], amp: 118, nets: 'tramp', assist: 200, killY: 980 }),
-  buildLevel('שרשרת', '', { n: 6, gap: [418, 432], dys: [1, -1], amp: 115, nets: 'sparse', assist: 200, killY: 980 }),
-  buildLevel('קפיצות דיוק', '', { n: 6, gap: [420, 438], dys: [0, 1, -1, 1], amp: 120, nets: 'tramp', assist: 190, killY: 970 }),
-  buildLevel('חצי הדרך', 'רשת הביטחון? כבר לא', { n: 6, gap: [422, 440], dys: [-1, 1, 1, -1], amp: 122, nets: 'tramp', assist: 190, killY: 970 }),
-  buildLevel('נדנדות גבוהות', '', { n: 7, gap: [420, 435], dys: [1, -0.5, -1, 0.5], amp: 125, nets: 'tramp', assist: 180, killY: 960 }),
-  buildLevel('זרימה', '', { n: 7, gap: [422, 438], dys: [-1, 1, -0.7, 0.7], amp: 125, nets: 'none', assist: 180, killY: 950 }),
-  buildLevel('שבעה ווים', '', { n: 7, gap: [422, 440], dys: [1, -1, 1, -1], amp: 128, nets: 'tramp', assist: 180, killY: 950 }),
-  buildLevel('טירוף מתון', '', { n: 7, gap: [425, 442], dys: [-1, 0.5, 1, -0.5], amp: 130, nets: 'none', assist: 180, killY: 940 }),
-  buildLevel('בלי רשת', 'מכאן - בלי רשת ביטחון. רק אתם והווים', { n: 7, gap: [425, 445], dys: [1, -1, 0.8, -0.8], amp: 130, nets: 'none', assist: 180, killY: 940 }),
-  buildLevel('אמיצים בלבד', '', { n: 8, gap: [425, 442], dys: [-1, 1, 1, -1, 0.6], amp: 132, nets: 'tramp', assist: 180, killY: 940 }),
-  buildLevel('מהירות שיא', '', { n: 8, gap: [428, 445], dys: [0.7, -1, 1, -0.7], amp: 135, nets: 'none', assist: 180, killY: 930 }),
-  buildLevel('מרתון ווים', '', { n: 8, gap: [428, 442], dys: [1, -1, -1, 1], amp: 130, nets: 'tramp', assist: 180, killY: 930 }),
-  buildLevel('דיוק קטלני', '', { n: 8, gap: [430, 448], dys: [-1, 1, 0.6, -0.6, 1], amp: 138, nets: 'none', assist: 180, killY: 920 }),
-  buildLevel('זהב באופק', '', { n: 8, gap: [430, 445], dys: [1, -0.8, 0.8, -1], amp: 140, nets: 'none', assist: 180, killY: 920 }),
-  buildLevel('סופה', '', { n: 9, gap: [428, 448], dys: [-1, 1, -1, 1, 0.5], amp: 140, nets: 'none', assist: 180, killY: 910 }),
-  buildLevel('ברק', '', { n: 9, gap: [430, 450], dys: [0.8, -1, 1, -0.8, -1], amp: 142, nets: 'tramp', assist: 180, killY: 910 }),
-  buildLevel('סופת ווים', '', { n: 9, gap: [432, 450], dys: [-1, 0.9, -0.9, 1], amp: 145, nets: 'none', assist: 180, killY: 900 }),
-  buildLevel('כמעט שם', '', { n: 9, gap: [432, 452], dys: [1, -1, 0.7, -0.7, 1, -1], amp: 148, nets: 'none', assist: 180, killY: 900 }),
-  buildLevel('האליפות הגדולה', 'השלב האחרון. תנו הכל!', { n: 10, gap: [430, 452], dys: [-1, 1, -1, 1, -1, 1], amp: 150, nets: 'none', assist: 180, killY: 890, fin: 60 }),
+  buildLevel('מאזניים', '', { n: 8, gap: [408, 425], dys: [-1, 1], amp: 105, nets: 'sparse', assist: 220, killY: 1010 }),
+  buildLevel('קפיצת טרמפולינה', 'טרמפולינות אדומות מקפיצות חזק!', { n: 8, gap: [410, 428], dys: [1, -1, 0.8], amp: 108, nets: 'tramp', assist: 220, killY: 1010 }),
+  buildLevel('צד שני', '', { n: 8, gap: [412, 430], dys: [-1, 1, -1], amp: 110, nets: 'tramp', assist: 220, killY: 1000 }),
+  buildLevel('עולים בקצב', '', { n: 10, gap: [412, 428], dys: [1, -1], amp: 105, nets: 'sparse', assist: 210, killY: 1000 }),
+  buildLevel('גלים', '', { n: 8, gap: [415, 432], dys: [-1, 1, 1], amp: 112, nets: 'tramp', assist: 210, killY: 990 }),
+  buildLevel('מדרגות', '', { n: 10, gap: [415, 430], dys: [1, 0, -1], amp: 115, nets: 'tramp', assist: 200, killY: 990 }),
+  buildLevel('זיגזג', '', { n: 10, gap: [418, 435], dys: [-1, 1, -1, 1], amp: 118, nets: 'tramp', assist: 200, killY: 980 }),
+  buildLevel('שרשרת', '', { n: 10, gap: [418, 432], dys: [1, -1], amp: 115, nets: 'sparse', assist: 200, killY: 980 }),
+  buildLevel('קפיצות דיוק', '', { n: 10, gap: [420, 438], dys: [0, 1, -1, 1], amp: 120, nets: 'tramp', assist: 190, killY: 970 }),
+  buildLevel('חצי הדרך', 'רשת הביטחון? כבר לא', { n: 10, gap: [422, 440], dys: [-1, 1, 1, -1], amp: 122, nets: 'tramp', assist: 190, killY: 970 }),
+  buildLevel('נדנדות גבוהות', '', { n: 11, gap: [420, 435], dys: [1, -0.5, -1, 0.5], amp: 125, nets: 'tramp', assist: 180, killY: 960 }),
+  buildLevel('זרימה', '', { n: 11, gap: [422, 438], dys: [-1, 1, -0.7, 0.7], amp: 125, nets: 'none', assist: 180, killY: 950 }),
+  buildLevel('שבעה ווים', '', { n: 11, gap: [422, 440], dys: [1, -1, 1, -1], amp: 128, nets: 'tramp', assist: 180, killY: 950 }),
+  buildLevel('טירוף מתון', '', { n: 11, gap: [425, 442], dys: [-1, 0.5, 1, -0.5], amp: 130, nets: 'none', assist: 180, killY: 940 }),
+  buildLevel('בלי רשת', 'מכאן - בלי רשת ביטחון. רק אתם והווים', { n: 11, gap: [425, 445], dys: [1, -1, 0.8, -0.8], amp: 130, nets: 'none', assist: 180, killY: 940 }),
+  buildLevel('אמיצים בלבד', '', { n: 13, gap: [425, 442], dys: [-1, 1, 1, -1, 0.6], amp: 132, nets: 'tramp', assist: 180, killY: 940 }),
+  buildLevel('מהירות שיא', '', { n: 13, gap: [428, 445], dys: [0.7, -1, 1, -0.7], amp: 135, nets: 'none', assist: 180, killY: 930 }),
+  buildLevel('מרתון ווים', '', { n: 13, gap: [428, 442], dys: [1, -1, -1, 1], amp: 130, nets: 'tramp', assist: 180, killY: 930 }),
+  buildLevel('דיוק קטלני', '', { n: 13, gap: [430, 448], dys: [-1, 1, 0.6, -0.6, 1], amp: 138, nets: 'none', assist: 180, killY: 920 }),
+  buildLevel('זהב באופק', '', { n: 13, gap: [430, 445], dys: [1, -0.8, 0.8, -1], amp: 140, nets: 'none', assist: 180, killY: 920 }),
+  buildLevel('סופה', '', { n: 14, gap: [428, 448], dys: [-1, 1, -1, 1, 0.5], amp: 140, nets: 'none', assist: 180, killY: 910 }),
+  buildLevel('ברק', '', { n: 14, gap: [430, 450], dys: [0.8, -1, 1, -0.8, -1], amp: 142, nets: 'tramp', assist: 180, killY: 910 }),
+  buildLevel('סופת ווים', '', { n: 14, gap: [432, 450], dys: [-1, 0.9, -0.9, 1], amp: 145, nets: 'none', assist: 180, killY: 900 }),
+  buildLevel('כמעט שם', '', { n: 14, gap: [432, 452], dys: [1, -1, 0.7, -0.7, 1, -1], amp: 148, nets: 'none', assist: 180, killY: 900 }),
+  buildLevel('האליפות הגדולה', 'השלב האחרון. תנו הכל!', { n: 16, gap: [430, 452], dys: [-1, 1, -1, 1, -1, 1], amp: 150, nets: 'none', assist: 180, killY: 890, fin: 60 }),
 ];
 
 window.StickmanLevels = window.StickmanLevels.concat(GENERATED);

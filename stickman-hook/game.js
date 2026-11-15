@@ -32,6 +32,7 @@ const ui = {
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
   clearTitle: $('clear-title'), clearTime: $('clear-time'), skins: $('skins'),
+  clearStars: $('clear-stars'),
 };
 
 /* ---------- persistent state ---------- */
@@ -48,6 +49,9 @@ const store = {
   set done(v) { localStorage.setItem('sh_done', v ? '1' : '0'); },
   best(i) { const v = +(localStorage.getItem('sh_best_' + i) || 0); return v > 0 ? v : null; },
   setBest(i, t) { localStorage.setItem('sh_best_' + i, t); },
+  stars(i) { return +(localStorage.getItem('sh_stars_' + i) || 0); },
+  setStars(i, n) { localStorage.setItem('sh_stars_' + i, n); },
+  totalStars() { let t = 0; for (let i = 0; i < LEVELS.length; i++) t += this.stars(i); return t; },
 };
 
 /* ---------- unlockable hero skins (poki weekly-skins spirit) ---------- */
@@ -101,6 +105,7 @@ const sfx = {
   fail: () => tone(220, 0.30, 'sawtooth', 0.08, 70),
   win: () => { tone(523, .12, 'sine', .12); setTimeout(() => tone(659, .12, 'sine', .12), 110); setTimeout(() => tone(784, .22, 'sine', .12), 220); },
   click: () => tone(440, 0.06, 'sine', 0.06),
+  star: () => { tone(987, .09, 'sine', .11); setTimeout(() => tone(1318, .14, 'sine', .11), 80); },
   jump: () => tone(320, 0.13, 'square', 0.08, 760),
 };
 
@@ -128,6 +133,8 @@ const game = {
   lastPose: null,
   shake: 0,
   playTime: 0,
+  stars: [],
+  runStars: 0,
 };
 
 function buildWorld() {
@@ -145,6 +152,8 @@ function buildWorld() {
   game.world.camera.x = a.x; game.world.camera.y = a.y + 260;
   game.levelStartX = a.x - 100;
   game.particles.clear();
+  game.stars = (L.stars || []).map(st => ({ x: st.x, y: st.y, taken: false }));
+  game.runStars = 0;
 }
 
 function loadLevel(i) {
@@ -162,7 +171,7 @@ function setState(s) {
   if (s !== 'levelsel') ui.levelsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
   if (s === 'menu') {
-    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length;
+    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ⭐ ' + store.totalStars() + '/' + (LEVELS.length * 3);
     renderSkins();
   }
   if (s === 'intro') {
@@ -175,6 +184,14 @@ function setState(s) {
   if (s === 'clear') {
     const last = game.levelIndex >= LEVELS.length - 1;
     ui.clearTitle.textContent = last ? 'כל הכבוד! סיימת את כל השלבים!' : 'השלב הושלם!';
+    ui.clearStars.innerHTML = '';
+    for (let j = 0; j < 3; j++) {
+      const sp = document.createElement('span');
+      sp.className = 'clear-star' + (j < game.runStars ? ' on' : '');
+      sp.textContent = '★';
+      sp.style.animationDelay = (0.25 + j * 0.22) + 's';
+      ui.clearStars.appendChild(sp);
+    }
     ui.btnNext.textContent = last ? 'שחקו שוב' : 'השלב הבא';
     ui.clearPct.textContent = store.pct + '%';
     ui.clearTime.textContent = game.lastTime
@@ -210,6 +227,7 @@ function win() {
   game.newBest = !prevBest || t < prevBest;
   if (game.newBest) store.setBest(game.levelIndex, Math.round(t * 10) / 10);
   game.lastTime = Math.round(t * 10) / 10;
+  if (game.runStars > store.stars(game.levelIndex)) store.setStars(game.levelIndex, game.runStars);
   if (game.levelIndex >= LEVELS.length - 1) store.done = true;
   store.level = Math.min(game.levelIndex + 2, LEVELS.length);
   store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
@@ -269,6 +287,18 @@ function renderLevelGrid() {
     b.className = 'lv-btn' + (i < store.level - 1 || store.done ? ' done' : i === store.level - 1 ? ' current' : ' locked');
     b.textContent = unlocked ? String(i + 1) : '🔒';
     b.disabled = !unlocked;
+    if (unlocked) {
+      const got = store.stars(i);
+      const row = document.createElement('span');
+      row.className = 'lv-stars';
+      for (let j = 0; j < 3; j++) {
+        const st3 = document.createElement('i');
+        st3.className = j < got ? 'on' : '';
+        st3.textContent = '★';
+        row.appendChild(st3);
+      }
+      b.appendChild(row);
+    }
     const best = store.best(i);
     if (best) b.title = 'שיא: ' + best + 'שנ';
     b.addEventListener('click', () => {
@@ -342,6 +372,38 @@ function drawPads(L) {
   }
 }
 
+function starPath(x, y, r, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rr = i % 2 ? r * 0.46 : r;
+    const a = rot + i * Math.PI / 5 - Math.PI / 2;
+    const px = x + rr * Math.cos(a), py = y + rr * Math.sin(a);
+    if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function drawStars() {
+  for (let i = 0; i < game.stars.length; i++) {
+    const st = game.stars[i];
+    if (st.taken) continue;
+    const pulse = 1 + 0.09 * Math.sin(game.time * 3.2 + i * 2.1);
+    const rot = Math.sin(game.time * 1.6 + i) * 0.22;
+    ctx.save();
+    ctx.translate(st.x, st.y + Math.sin(game.time * 2 + i * 1.3) * 5);
+    ctx.rotate(rot);
+    ctx.scale(pulse, pulse);
+    ctx.shadowColor = 'rgba(255, 200, 60, .75)'; ctx.shadowBlur = 16;
+    starPath(0, 0, 20, 0);
+    ctx.fillStyle = '#ffcf3f'; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3; ctx.strokeStyle = '#e09b12'; ctx.stroke();
+    starPath(-4, -6, 7, 0.3);
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill();
+    ctx.restore();
+  }
+}
+
 function drawFinish(L) {
   const x = L.finishX, top = -200, bot = L.killY - 150, s = 18;
   ctx.save();
@@ -378,6 +440,17 @@ function drawHUD() {
   ctx.fillStyle = '#ffffff';
   ctx.fillText(String(n), bx - 22, by + bh / 2 + 1);
   ctx.fillText(String(n + 1), bx + bw + 26, by + bh / 2 + 1);
+  // run star counter, top right
+  const sx = W - 34, sy = narrow ? 90 : 26;
+  ctx.shadowColor = 'rgba(255,200,60,.7)'; ctx.shadowBlur = 8;
+  starPath(sx, sy, 13, 0);
+  ctx.fillStyle = '#ffcf3f'; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2; ctx.strokeStyle = '#e09b12'; ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'right';
+  ctx.font = '900 16px Heebo, sans-serif';
+  ctx.fillText(game.runStars + '/' + game.stars.length, sx - 20, sy + 1);
   ctx.restore();
 }
 
@@ -413,6 +486,16 @@ function frame(ts) {
     if (game.shake < 0.05) game.shake = 0;
     const p = game.world.player;
     if (game.state === 'play') {
+      for (const st2 of game.stars) {
+        if (st2.taken) continue;
+        if (Math.hypot(st2.x - p.x, st2.y - p.y) < 44) {
+          st2.taken = true;
+          game.runStars++;
+          game.particles.confetti(st2.x, st2.y, { count: 16, spread: 90 });
+          game.shake = Math.max(game.shake, 2);
+          sfx.star();
+        }
+      }
       if (p.x >= game.level.finishX) win();
       else if (p.y > game.level.killY) fail();
     } else if (game.state === 'clearing') {
@@ -463,6 +546,7 @@ function render() {
 
   drawFinish(L);
   drawPads(L);
+  drawStars();
 
   const rope = st.rope;
   for (const a of L.anchors) {
@@ -510,5 +594,8 @@ window.__game = {
   startLevel, beginPlay, win, fail,
   setHeld: b => { pointerHeld = !!b; game.world.setHeld(!!b); },
   renderFrame: () => render(),
+  get runStars() { return game.runStars; },
+  get stars() { return game.stars; },
+  totalStars: () => store.totalStars(),
 };
 })();
