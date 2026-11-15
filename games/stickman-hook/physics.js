@@ -179,7 +179,7 @@
       this.tick++;this.time=this.tick*h;
     }
     drainEvents(){const e=this.events;this.events=[];return e;}
-    getState(){return {tick:this.tick,time:this.time,held:this.held,player:Object.assign({},this.player),camera:Object.assign({},this.camera),rope:this.rope?{anchorId:this.rope.anchor.id,x:this.rope.anchor.x,y:this.rope.anchor.y,length:this.rope.length}:null};}
+    getState(){return {tick:this.tick,time:this.time,held:this.held,grounded:this._contact,player:Object.assign({},this.player),camera:Object.assign({},this.camera),rope:this.rope?{anchorId:this.rope.anchor.id,x:this.rope.anchor.x,y:this.rope.anchor.y,length:this.rope.length}:null};}
   }
   root.StickmanPhysics=Object.freeze({World:World,DEFAULTS:DEFAULTS,heightfield:heightfield,version:'1.0.0'});
 })(typeof window!=='undefined'?window:globalThis);

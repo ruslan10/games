@@ -333,14 +333,16 @@ function render() {
   }
 
   const p = st.player;
+  const speed = Math.hypot(p.vx, p.vy);
   let poseOpts;
   if (rope) {
     const ang = Math.atan2(p.y - rope.y, p.x - rope.x) - Math.PI / 2;
-    const speed = Math.hypot(p.vx, p.vy);
     poseOpts = { pose: 'swing', angle: ang, curl: Math.min(1, speed / 900), stretch: Math.min(1, speed / 1100) * 0.5 };
+  } else if (st.grounded) {
+    poseOpts = speed > 90 ? { pose: 'run', angle: 0 } : { pose: 'idle', angle: 0 };
   } else {
     const tilt = Math.atan2(p.vy, Math.max(60, Math.abs(p.vx))) * 0.25 * Math.sign(p.vx || 1);
-    poseOpts = { pose: 'fly', angle: tilt, curl: 0.35, stretch: Math.min(1, Math.hypot(p.vx, p.vy) / 1200) * 0.4 };
+    poseOpts = { pose: 'fly', angle: tilt, curl: 0.35, stretch: Math.min(1, speed / 1200) * 0.4 };
   }
   const pts = V.drawPlayer(ctx, Object.assign({
     x: p.x, y: p.y, time: game.time, facing: 1, colors: COLORS,

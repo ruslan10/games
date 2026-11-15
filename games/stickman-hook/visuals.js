@@ -10,10 +10,11 @@
  * drawPlayer(ctx,{x=0,y=0,pose='idle',time=0,angle=0,scale=1,facing=1,
  *   vx=0,vy=0,stretch=0,curl=0,landing=0,alpha=1,colors,playerSize,
  *   lineWidth,headRadius,reducedMotion}) -> local/world hand,head,feet points.
- * x/y is the hip/pivot. Canonical player is about 70 px tall (head top -47,
- * feet +25). angle rotates about hip. facing is +1/-1. stretch,curl 0..1.
- * landing is impact strength 0..1; decay this to zero over ~0.22s.
- * Poses: idle, run, swing, fly, tumble, land. Unknown pose uses idle.
+ * x/y is the hip/pivot. The hero is an original chibi hedgehog about 73 px
+ * tall at scale 1. angle rotates about hip. facing is +1/-1. stretch,curl
+ * 0..1. landing is impact strength 0..1; decay to zero over ~0.22s.
+ * Poses: idle, run, swing, fly (spinning ball), tumble, land.
+ * Unknown pose uses idle.
  * drawBackground(ctx,{x=0,y=0,width=canvas.width,height=canvas.height,
  *   time=0,colors,cloudScale,hillHeight,reducedMotion}) in SCREEN coordinates.
  * drawAnchor(ctx,{x,y,radius,inRange=false,active=false,time=0,colors,
@@ -46,45 +47,138 @@
   function reset(){config=Object.assign({},defaults,{colors:Object.assign({},colors)});}
   function disk(ctx,x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,Math.max(.01,r),0,TAU);ctx.fill();}
   function line(ctx,points,color,width){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(...points[0]);for(let i=1;i<points.length;i++)ctx.lineTo(...points[i]);ctx.stroke();}
+  /* Chibi hedgehog hero (variant A, original art): big head, small body,
+     swept blue quills, tan muzzle/belly, red shoes. Hip at local (0,0);
+     concept units are scaled by 0.4 so the hero is ~72 px tall at scale 1. */
+  const HC={blue:'#2f9bf0',blueD:'#1d6fd0',blueL:'#8fd0ff',tan:'#f7cf9f',tanD:'#e0aa6e',red:'#e63b3b',redD:'#b71f2e',redL:'#ff8a7a'};
+  const INK='#23213a',WHITE='#ffffff',GREEN='#2fbf71';
   function drawPlayer(ctx,s={}){
-    const c=palette(s),t=s.time||0,pose=s.pose||'idle',rm=setting(s,'reducedMotion');
-    const swing=rm?0:Math.sin(t*(pose==='run'?14:5));
-    let hip=[0,0],neck=[0,-23],head=[0,-37],arms=[-11,-13,-15,-2,11,-13,15,-2],legs=[-8,13,-9,25,8,13,9,25];
-    let lean=0,sy=1,sx=1;
-    if(pose==='run'){
-      neck=[5,-23];head=[6,-37];
-      arms=[[-4,-13],[-13-9*swing,-8-6*swing],[14,-14],[15+10*swing,-7+8*swing]];
-      legs=[[-3-12*swing,12],[-5-19*swing,23-7*Math.max(0,swing)],[3+12*swing,12],[5+19*swing,23-7*Math.max(0,-swing)]];
-      hip[1]=rm?0:-Math.abs(Math.sin(t*14))*3;
-    } else if(pose==='swing'){
-      const curl=clamp(s.curl||0),stretch=clamp(s.stretch||0);
-      arms=[[-6,-32],[-1,-48],[7,-32],[1,-48]];
-      legs=[[-8,lerp(15,6,curl)],[-7,lerp(29,7,curl)],[10,lerp(14,5,curl)],[16,lerp(26,-1,curl)]];
-      sy=1+stretch*.12;sx=1-stretch*.06;lean=swing*.025;
+    const t=s.time||0,pose=s.pose||'idle',rm=setting(s,'reducedMotion');
+    const scale=(s.scale===undefined?1:s.scale)*setting(s,'playerSize')*0.4;
+    const facing=s.facing<0?-1:1;
+    const angle=s.angle||0;
+    const curl=clamp(s.curl===undefined?0:s.curl),stretch=clamp(s.stretch||0);
+    ctx.save();ctx.globalAlpha*=s.alpha===undefined?1:clamp(s.alpha);
+    ctx.translate(s.x||0,s.y||0);ctx.rotate(angle);ctx.scale(scale*facing,scale);
+    const ell=(x,y,rx,ry,rot,color)=>{ctx.beginPath();ctx.ellipse(x,y,Math.max(.01,rx),Math.max(.01,ry),rot,0,TAU);ctx.fillStyle=color;ctx.fill();};
+    const circ=(x,y,r,color)=>ell(x,y,r,r,0,color);
+    const limb=(x1,y1,x2,y2,w,color)=>{ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();};
+    const spike=(cx,cy,ang,len,wid,color)=>{const dx=Math.cos(ang),dy=Math.sin(ang),px=-dy,py=dx;
+      ctx.beginPath();ctx.moveTo(cx-px*wid,cy-py*wid);
+      ctx.quadraticCurveTo(cx+dx*len*.55+px*wid*.5,cy+dy*len*.55+py*wid*.5,cx+dx*len,cy+dy*len);
+      ctx.quadraticCurveTo(cx+dx*len*.55-px*wid*.5,cy+dy*len*.55-py*wid*.5,cx-px*wid,cy-py*wid);
+      ctx.closePath();ctx.fillStyle=color;ctx.fill();};
+    const shadeOn=(x,y,r,a0,a1,color,w)=>{ctx.beginPath();ctx.arc(x,y,r,a0,a1);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke();};
+    const shoe=(x,y,ang)=>{ctx.save();ctx.translate(x,y);ctx.rotate(ang);
+      ell(4,0,19,10,0,HC.redD);ell(5,-2,18,9.5,0,HC.red);ell(13,-3,10,8,0,HC.red);
+      ell(8,-5.5,9,3.2,-0.15,HC.redL);
+      ctx.fillStyle=WHITE;ctx.fillRect(-8,-11,6.5,20);ell(-9.5,0,5,10.5,0,WHITE);
+      ctx.restore();};
+    const glove=(x,y,r)=>{circ(x,y,r,WHITE);ell(x-r*.3,y-r*.3,r*.42,r*.3,-0.6,'#e8e4f8');};
+    const torso=(x,y,rx,ry,rot)=>{ell(x,y,rx,ry,rot,HC.blueD);ell(x-rx*.06,y-ry*.10,rx*.94,ry*.9,rot,HC.blue);
+      ell(x+rx*.24,y+ry*.16,rx*.62,ry*.64,rot,HC.tanD);ell(x+rx*.22,y+ry*.12,rx*.56,ry*.58,rot,HC.tan);};
+    const head=(x,y,r,look)=>{const sl=r*1.25,sw=r*.34;
+      spike(x-r*.30,y-r*.78,-2.5,sl*1.05,sw,HC.blueD);
+      spike(x-r*.72,y-r*.45,-2.9,sl*1.15,sw,HC.blueD);
+      spike(x-r*.85,y-r*.02,-3.3,sl,sw*.9,HC.blueD);
+      spike(x-r*.28,y-r*.85,-2.62,sl,sw*.92,HC.blue);
+      spike(x-r*.68,y-r*.52,-3.0,sl*1.08,sw*.92,HC.blue);
+      spike(x-r*.80,y-r*.08,-3.42,sl*.92,sw*.85,HC.blue);
+      spike(x-r*.60,y+r*.34,-3.85,sl*.7,sw*.7,HC.blue);
+      ctx.beginPath();ctx.moveTo(x-r*.05,y-r*.92);ctx.lineTo(x+r*.30,y-r*1.26);ctx.lineTo(x+r*.44,y-r*.78);ctx.closePath();ctx.fillStyle=HC.blue;ctx.fill();
+      ctx.beginPath();ctx.moveTo(x+r*.07,y-r*.93);ctx.lineTo(x+r*.26,y-r*1.11);ctx.lineTo(x+r*.33,y-r*.84);ctx.closePath();ctx.fillStyle=HC.tan;ctx.fill();
+      circ(x,y,r,HC.blue);
+      shadeOn(x,y,r*.97,-2.9,-1.4,HC.blueL,r*.09);
+      shadeOn(x,y,r*.97,0.5,1.6,HC.blueD,r*.08);
+      ell(x+r*.50,y+r*.40,r*.60,r*.42,0.08,HC.tan);
+      ell(x+r*.44,y+r*.46,r*.44,r*.28,0.08,HC.tanD);
+      ell(x+r*.50,y+r*.34,r*.52,r*.34,0.08,HC.tan);
+      circ(x+r*.99,y+r*.16,r*.135,INK);
+      circ(x+r*.94,y+r*.11,r*.04,WHITE);
+      ell(x+r*.30,y-r*.24,r*.31,r*.46,-0.10,WHITE);
+      ell(x+r*.80,y-r*.22,r*.27,r*.42,-0.05,WHITE);
+      const lx=look||0;
+      circ(x+r*.42+lx,y-r*.20,r*.155,GREEN);
+      circ(x+r*.86+lx,y-r*.18,r*.14,GREEN);
+      circ(x+r*.46+lx,y-r*.20,r*.075,INK);
+      circ(x+r*.90+lx,y-r*.18,r*.07,INK);
+      circ(x+r*.50+lx,y-r*.25,r*.035,WHITE);
+      circ(x+r*.93+lx,y-r*.23,r*.032,WHITE);
+      ctx.beginPath();ctx.moveTo(x+r*.38,y+r*.48);
+      ctx.quadraticCurveTo(x+r*.62,y+r*.62,x+r*.85,y+r*.42);
+      ctx.strokeStyle=INK;ctx.lineWidth=r*.065;ctx.lineCap='round';ctx.stroke();
+      circ(x+r*.87,y+r*.40,r*.045,INK);};
+    const hr=51,trx=28,try_=23,lw=13,legL=44;
+    let handL=[6,-150],headL=[4,-77],feetL=[[-17,48],[18,48]];
+    if(pose==='swing'){
+      const ex=1+stretch*.18,k=28*curl;
+      torso(0,10*ex,trx,try_*1.05,-0.06);
+      const shY=-14*ex;
+      limb(trx*.5,shY,10,-118,12,HC.blueD);
+      limb(10,-118,6,-146,12,HC.blue);
+      glove(6,-152,13);
+      limb(-trx*.5,shY,-26,38,lw,HC.blue);glove(-30,44,11);
+      limb(-10,26,-18-k,64,lw+2,HC.blueD);shoe(-22-k,76,-0.5);
+      limb(12,26,30-k*.5,60,lw+2,HC.blue);shoe(36-k*.5,70,0.25);
+      head(10,-58,hr,2);
+      handL=[6,-152];headL=[10,-58-hr];feetL=[[-22-k,76],[36-k*.5,70]];
     } else if(pose==='fly'||pose==='tumble'){
-      const curl=clamp(s.curl===undefined?(pose==='tumble'?.8:.15):s.curl);
-      arms=[[-13,-15],[-23,-22+curl*18],[14,-17],[23,-25+curl*16]];
-      legs=[[-12,10],[-19+curl*18,23-curl*12],[13,8],[22-curl*13,19-curl*23]];
-      lean=rm?0:swing*.06;
+      const R=58;
+      ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=4.5;ctx.lineCap='round';
+      for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,0,R+14+i*10,2.4-i*.28,3.6-i*.28);ctx.stroke();}
+      circ(0,0,R,HC.blueD);
+      circ(0,-R*.06,R*.94,HC.blue);
+      const a0=rm?0.8:((t*9)%TAU);
+      for(let i=0;i<6;i++){const a=a0+i*TAU/6;
+        spike(Math.cos(a)*R*.82,Math.sin(a)*R*.82,a,R*.6,R*.15,i%2?HC.blue:HC.blueD);}
+      ctx.beginPath();ctx.arc(0,0,R*.62,a0,a0+2.1);ctx.strokeStyle=HC.blueD;ctx.lineWidth=8;ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,R*.36,a0+1.2,a0+3.0);ctx.strokeStyle=HC.blueL;ctx.lineWidth=6.5;ctx.stroke();
+      handL=[0,-R];headL=[0,-R];feetL=[[-R*.5,R*.6],[R*.5,R*.6]];
+    } else if(pose==='run'){
+      const sw=rm?0:Math.sin(t*14);
+      ctx.save();ctx.rotate(0.22);
+      torso(0,-26,trx,try_,-0.12);
+      const shY=-34,hipY=-4;
+      limb(-trx*.5,shY,-trx*.5-22,-44,lw,HC.blueD);glove(-trx*.5-25,-49,11);
+      limb(trx*.5,shY,trx*.5+20,4,lw,HC.blue);glove(trx*.5+23,9,11);
+      limb(-10,hipY,-16-22*sw,hipY+legL*.5,lw+2,HC.blueD);
+      limb(-16-22*sw,hipY+legL*.5,-20-30*sw,hipY+legL-12*Math.max(0,sw),lw+1,HC.blueD);
+      shoe(-24-32*sw,hipY+legL+8-12*Math.max(0,sw),-0.4);
+      limb(12,hipY,18+22*sw,hipY+legL*.45,lw+2,HC.blue);
+      limb(18+22*sw,hipY+legL*.45,22+30*sw,hipY+legL-12*Math.max(0,-sw),lw+1,HC.blue);
+      shoe(26+32*sw,hipY+legL+9-12*Math.max(0,-sw),0.3);
+      head(12,shY-hr*.82,hr,4);
+      ctx.restore();
+      handL=[trx*.5+23,9];headL=[12,shY-hr*1.8];feetL=[[-24-32*sw,hipY+legL+8],[26+32*sw,hipY+legL+9]];
     } else if(pose==='land'){
-      const impact=clamp(s.landing===undefined?1:s.landing);sy=1-impact*.35;sx=1+impact*.24;
-      arms=[[-14,-11],[-23,1],[14,-11],[23,1]];
-      legs=[[-13,10],[-17,25],[13,10],[17,25]];
-    } else {hip[1]=rm?0:swing*1.5;}
-    arms=arms.flat();legs=legs.flat();
-    const angle=(s.angle||0)+lean,scale=(s.scale===undefined?1:s.scale)*setting(s,'playerSize'),facing=s.facing<0?-1:1;
-    const size=setting(s,'lineWidth'),r=setting(s,'headRadius');
-    ctx.save();ctx.globalAlpha*=s.alpha===undefined?1:clamp(s.alpha);ctx.translate(s.x||0,s.y||0);ctx.rotate(angle);ctx.scale(scale*facing*sx,scale*sy);ctx.translate(...hip);
-    line(ctx,[[0,0],[legs[0],legs[1]],[legs[2],legs[3]]],c.playerShade,size);
-    line(ctx,[[0,0],[legs[4],legs[5]],[legs[6],legs[7]]],c.player,size);
-    line(ctx,[neck,[arms[0],arms[1]],[arms[2],arms[3]]],c.playerShade,size);
-    line(ctx,[[0,0],neck],c.player,size+1.5);
-    line(ctx,[neck,[arms[4],arms[5]],[arms[6],arms[7]]],c.player,size);
-    disk(ctx,head[0],head[1]+1.2,r+1,c.playerShade);disk(ctx,head[0],head[1]-1,r,c.player);
-    ctx.globalAlpha*=.65;line(ctx,[[head[0]-r*.45,head[1]-r*.5],[head[0]-r*.1,head[1]-r*.68]],c.playerLight,2.5);ctx.globalAlpha/=.65;
-    disk(ctx,head[0]+r*.38,head[1]-r*.18,r*.13,c.eye);ctx.restore();
-    function world(p){const x=(p[0]+hip[0])*scale*facing*sx,y=(p[1]+hip[1])*scale*sy;return{x:(s.x||0)+x*Math.cos(angle)-y*Math.sin(angle),y:(s.y||0)+x*Math.sin(angle)+y*Math.cos(angle)};}
-    return{hand:world([arms[6],arms[7]]),head:world(head),feet:[world([legs[2],legs[3]]),world([legs[6],legs[7]])]};
+      const impact=clamp(s.landing===undefined?1:s.landing);
+      ctx.scale(1+impact*.22,1-impact*.3);
+      torso(0,-24,trx*1.1,try_*.85,0);
+      const shY=-30;
+      limb(-trx*.5,shY,-34,0,lw,HC.blue);glove(-38,5,11);
+      limb(trx*.5,shY,36,-2,lw,HC.blue);glove(40,3,11);
+      limb(-11,-2,-20,34,lw+2,HC.blueD);shoe(-24,44,-0.15);
+      limb(12,-2,22,34,lw+2,HC.blue);shoe(26,44,0.15);
+      head(6,shY-hr*.8,hr,2);
+      handL=[6,-40];headL=[6,shY-hr*1.8];feetL=[[-24,44],[26,44]];
+    } else {
+      const bob=rm?0:Math.sin(t*2.2)*2.5;
+      ctx.translate(0,bob);
+      torso(0,-28,trx,try_,0);
+      const shY=-36,hipY=-6;
+      limb(-trx*.55,shY,-trx*.55-15,2,lw,HC.blueD);glove(-trx*.55-17,8,11);
+      limb(trx*.55,shY,trx*.62+11,-2,lw,HC.blue);glove(trx*.62+13,3,11);
+      limb(-12,hipY,-15,hipY+legL,lw+2,HC.blueD);
+      limb(13,hipY,16,hipY+legL,lw+2,HC.blue);
+      shoe(-17,hipY+legL+10,0);
+      shoe(18,hipY+legL+10,0);
+      head(4,shY-hr*.82,hr,2);
+      handL=[trx*.62+13,3];headL=[4,shY-hr*1.8];feetL=[[-17,hipY+legL+10],[18,hipY+legL+10]];
+    }
+    ctx.restore();
+    const cs=Math.cos(angle),sn=Math.sin(angle),k=scale;
+    const world=p=>{const lx=p[0]*facing*k,ly=p[1]*k;return{x:(s.x||0)+lx*cs-ly*sn,y:(s.y||0)+lx*sn+ly*cs};};
+    return{hand:world(handL),head:world(headL),feet:[world(feetL[0]),world(feetL[1])]};
   }
   function drawBackground(ctx,camera={}){
     const c=palette(camera),w=camera.width===undefined?ctx.canvas.width:camera.width,h=camera.height===undefined?ctx.canvas.height:camera.height,x=camera.x||0,y=camera.y||0,t=setting(camera,'reducedMotion')?0:camera.time||0;
