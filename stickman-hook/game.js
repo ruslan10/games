@@ -61,19 +61,24 @@ const store = {
    Unlocks come from total fruit points now; `at` (level) and `oldStars`
    stay as grandfather rules so existing players never lose a skin. */
 const ABILITIES = {
-  hog:     'מאוזן וזריז בכל מצב',
+  hog:     'מגנט: מושך פירות מרחוק',
+  rabbit:  'קופץ גבוה מהקרקע',
+  robot:   'תופס ווים ממרחק רב',
+  ninja:   'שחרור נדנוד מעץ במהירות',
+  cat:     'ניצל מנפילה פעם אחת בשלב',
+  bird:    'מרפרף קדימה באוויר',
   super:   'עף רחוק ומהר בסיום השלב',
   bean:    'קפיצת אוויר כפולה',
   fox:     'מגליש לאט באוויר עם הזנבות',
   echidna: 'קופץ גבוה מטרמפולינות',
 };
 const SKINS = [
-  { name: 'כחול', pts: 0,   at: 1,  c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
-  { name: 'אש',   pts: 30,  at: 5,  c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'ליים', pts: 80,  at: 10, c: { hogBlue: '#4ec94f', hogBlueD: '#2f9e35', hogBlueL: '#a9f0a5' } },
-  { name: 'סגול', pts: 150, at: 15, c: { hogBlue: '#a05ce8', hogBlueD: '#7c3cc6', hogBlueL: '#d6b2ff' } },
-  { name: 'זהב',  pts: 250, at: 20, c: { hogBlue: '#ffb020', hogBlueD: '#d98c08', hogBlueL: '#ffe08a' } },
-  { name: 'ורוד', pts: 400, at: 25, c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+  { name: 'קיפוד',  pts: 0,   at: 1,  body: 'hog',    c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
+  { name: 'ארנב',   pts: 30,  at: 5,  body: 'rabbit', c: { hogBlue: '#cfd9e6', hogBlueD: '#93a5bb', hogBlueL: '#f2f6fb' } },
+  { name: 'רובוט',  pts: 80,  at: 10, body: 'robot',  c: { hogBlue: '#9aa7b8', hogBlueD: '#5d6b80', hogBlueL: '#d3dce8' } },
+  { name: 'נינג׳ה', pts: 150, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
+  { name: 'חתול',   pts: 250, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
+  { name: 'ציפור',  pts: 400, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
   /* character skins (original art, palette-evoked), unlocked by total points */
   { name: 'גיבור על', pts: 120, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
   { name: 'שותף חלל', pts: 300, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
@@ -213,6 +218,10 @@ function buildWorld() {
   if (game.body === 'bean') abil.airHops = 2;
   if (game.body === 'fox') abil.maxFallSpeed = 500;
   if (game.body === 'echidna') abil.padBoostMult = 1.3;
+  if (game.body === 'rabbit') abil.groundBoost = 1.45;
+  if (game.body === 'robot') abil.catchRadius = 500;
+  if (game.body === 'ninja') abil.releaseBoost = 1.25;
+  if (game.body === 'bird') abil.airThrust = 300;
   game.world = new P.World(Object.assign({
     assist: L.assist || 240, assistSpeed: 900,
     anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
@@ -229,6 +238,7 @@ function buildWorld() {
   game.fruits = (L.fruits || []).map(f => ({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false }));
   game.runPts = 0;
   game.pops = [];
+  game.catRescued = false;
 }
 
 function loadLevel(i) {
@@ -338,6 +348,22 @@ function win() {
 
 function fail() {
   if (game.state !== 'play') return;
+  /* cat ability: one rescue per level - land back on the last anchor */
+  if (game.body === 'cat' && !game.catRescued) {
+    game.catRescued = true;
+    const p = game.world.player;
+    let best = null;
+    for (const a of game.level.anchors) if (a.x < p.x - 40 && (!best || a.x > best.x)) best = a;
+    const a = best || game.level.anchors[0];
+    game.world.setHeld(false);
+    game.world.reset({ x: a.x - 60, y: a.y + 300 });
+    game.world.attach(a.id);
+    game.world.setHeld(true);
+    game.pops.push({ x: a.x, y: a.y + 160, t: 0, txt: 'ניצלת!', col: '#a5f5a9' });
+    game.shake = Math.max(game.shake, 6);
+    sfx.jump && sfx.jump();
+    return;
+  }
   game.state = 'failing';
   game.failTimer = 0.55;
   ui.fail.classList.add('show');
@@ -755,9 +781,10 @@ function frame(ts) {
     for (const pop of game.pops) pop.t += dt;
     game.pops = game.pops.filter(pop => pop.t < 0.9);
     if (game.state === 'play') {
+      const magnet = game.body === 'hog' ? 115 : 46;
       for (const f of game.fruits) {
         if (f.taken) continue;
-        if (Math.hypot(f.x - p.x, f.y - p.y) < 46) {
+        if (Math.hypot(f.x - p.x, f.y - p.y) < magnet) {
           f.taken = true;
           game.runPts += f.v;
           game.pops.push({ x: f.x, y: f.y, t: 0, txt: '+' + f.v, col: f.v >= 20 ? '#ff8a8a' : f.v >= 10 ? '#a5f5a9' : '#ffe08a' });

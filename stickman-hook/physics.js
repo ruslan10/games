@@ -80,7 +80,12 @@
       this._event('attach',{anchorId:a.id,length:len});return true;
     }
     release(){
-      this.held=false;if(this.rope){this._event('release',{anchorId:this.rope.anchor.id,vx:this.player.vx,vy:this.player.vy});this._lastRelease={id:this.rope.anchor.id,time:this.time};this.rope=null;}
+      this.held=false;
+      if(this.rope){
+        const rb=this.options.releaseBoost===undefined?1:this.options.releaseBoost;
+        if(rb!==1){const p=this.player,sp=Math.hypot(p.vx,p.vy)||1,cap=this.options.maxSpeed*1.15/sp,mul=Math.min(rb,cap);
+          p.vx*=mul;p.vy*=mul;}
+        this._event('release',{anchorId:this.rope.anchor.id,vx:this.player.vx,vy:this.player.vy});this._lastRelease={id:this.rope.anchor.id,time:this.time};this.rope=null;}
       return this;
     }
     /* tap(): poki-style tap. Hook the nearest in-range anchor; with no anchor
@@ -92,7 +97,8 @@
       if(a){this.attach(a);return 'hook';}
       const p=this.player,dir=Math.sign(p.vx||this.options.forward);
       if(this._contact){
-        p.vy=Math.min(p.vy,0)-620;p.vx+=260*dir;
+        const gb=this.options.groundBoost===undefined?1:this.options.groundBoost;
+        p.vy=Math.min(p.vy,0)-620*gb;p.vx+=260*gb*dir;
         this._event('jump',{kind:'ground'});return 'jump';
       }
       if(this._airHops>0){
@@ -175,6 +181,10 @@
       let contact=false;
       for(let m=0;m<count;m++){
         const prev={x:p.x,y:p.y};p.vy+=o.gravity*s;
+        if(this.held&&!this.rope&&o.airThrust){
+          // flutter toward the goal (never backward), capped like swing assist
+          if(p.vx<400)p.vx+=o.airThrust*s*o.forward;
+        }
         if(this.held&&this.rope&&o.assist){
           const r=this.rope,dx=p.x-r.anchor.x,dy=p.y-r.anchor.y,d=Math.hypot(dx,dy)||1;
           let tx=dy/d,ty=-dx/d;
