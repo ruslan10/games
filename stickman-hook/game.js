@@ -133,7 +133,7 @@ const game = {
 function buildWorld() {
   const L = game.level;
   game.world = new P.World({
-    assist: 240, assistSpeed: 900,
+    assist: L.assist || 240, assistSpeed: 900,
     anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
       boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640 })),
@@ -308,16 +308,35 @@ function roundRect(x, y, w, h, r) {
 
 function drawPads(L) {
   for (const p of L.pads) {
-    const w = p.x2 - p.x1;
+    const w = p.x2 - p.x1, hh = p.y2 - p.y1;
+    const len = Math.hypot(w, hh), ang = Math.atan2(hh, w);
     ctx.save();
-    ctx.fillStyle = '#241f3a';
-    roundRect(p.x1, p.y1 - 8, w, 26, 13); ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    roundRect(p.x1 + 5, p.y1 - 8, w - 10, 7, 4); ctx.fill();
-    // segment notches on long ground bars, like the original
-    if (w > 200) {
-      ctx.fillStyle = 'rgba(255,255,255,.28)';
-      for (let x = p.x1 + 85; x < p.x2 - 20; x += 85) ctx.fillRect(x, p.y1 + 2, 4, 12);
+    ctx.translate(p.x1, p.y1);
+    ctx.rotate(ang);
+    if (p.kind === 'tramp') {
+      // angled spring trampoline: dark base, red springy top with white shine
+      ctx.fillStyle = '#241f3a';
+      roundRect(0, -6, len, 22, 10); ctx.fill();
+      ctx.fillStyle = '#3a3358';
+      for (let x = 16; x < len - 10; x += 26) {
+        ctx.beginPath();
+        ctx.moveTo(x, 14); ctx.lineTo(x + 8, 2); ctx.lineTo(x + 16, 14);
+        ctx.strokeStyle = '#4a4180'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+      }
+      ctx.fillStyle = '#ff4d5e';
+      roundRect(3, -15, len - 6, 13, 8); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      roundRect(8, -13, len - 16, 5, 3); ctx.fill();
+    } else {
+      ctx.fillStyle = '#241f3a';
+      roundRect(0, -8, len, 26, 13); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      roundRect(5, -8, len - 10, 7, 4); ctx.fill();
+      // segment notches on long ground bars, like the original
+      if (len > 200) {
+        ctx.fillStyle = 'rgba(255,255,255,.28)';
+        for (let x = 85; x < len - 20; x += 85) ctx.fillRect(x, 2, 4, 12);
+      }
     }
     ctx.restore();
   }

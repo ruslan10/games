@@ -176,8 +176,13 @@
         const prev={x:p.x,y:p.y};p.vy+=o.gravity*s;
         if(this.held&&this.rope&&o.assist){
           const r=this.rope,dx=p.x-r.anchor.x,dy=p.y-r.anchor.y,d=Math.hypot(dx,dy)||1;
-          let tx=dy/d,ty=-dx/d;if(tx*o.forward<0){tx=-tx;ty=-ty;}
-          if(p.vx*tx+p.vy*ty<o.assistSpeed){p.vx+=tx*o.assist*s;p.vy+=ty*o.assist*s;}
+          let tx=dy/d,ty=-dx/d;
+          const vt=p.vx*tx+p.vy*ty;
+          // Pump like a real swing: drive along the current tangential motion
+          // (builds amplitude in either direction); from a dead hang, kick forward.
+          if(vt<0){tx=-tx;ty=-ty;}
+          else if(Math.abs(vt)<1e-6&&tx*o.forward<0){tx=-tx;ty=-ty;}
+          if(Math.abs(vt)<o.assistSpeed){p.vx+=tx*o.assist*s;p.vy+=ty*o.assist*s;}
         }
         const drag=Math.exp(-Math.max(0,o.airDrag)*s);p.vx*=drag;p.vy*=drag;
         p.vy=Math.min(p.vy,o.terminalVelocity);
