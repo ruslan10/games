@@ -179,6 +179,10 @@ function resize() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 window.addEventListener('resize', resize);
+/* Android Chrome can drop the canvas backing store under GPU pressure;
+   re-measure and force a clean frame when the context comes back. */
+canvas.addEventListener('contextlost', () => {});
+canvas.addEventListener('contextrestored', resize);
 
 /* ---------- game state ---------- */
 const game = {
@@ -503,7 +507,9 @@ function starPath(x, y, r, rot) {
   ctx.closePath();
 }
 
-function drawFruit(x, y, k, s2) {
+function drawFruit(x, y, k, s2) { drawFruitOn(ctx, x, y, k, s2); }
+function drawFruitOn(c2, x, y, k, s2) {
+  const ctx = c2;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s2, s2);
@@ -564,25 +570,43 @@ function drawFruit(x, y, k, s2) {
   ctx.restore();
 }
 
+/* Pre-rendered fruit sprites with baked glow: ctx.shadowBlur in the per-frame
+   hot path overwhelms mobile GPU canvas rasterization (tiles from stale frames
+   smear across the screen), so all glow lives in one-time offscreen renders. */
+const FRUIT_SPRITES = {};
+function fruitSprite(k) {
+  if (FRUIT_SPRITES[k]) return FRUIT_SPRITES[k];
+  const S = 72, cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const c2 = cv.getContext('2d');
+  const glow = k === 'cherry' ? '255,80,80' : k === 'melon' ? '120,255,140' : '255,220,90';
+  const rad = k === 'melon' || k === 'cherry' ? 0.5 : 0.38;
+  const g = c2.createRadialGradient(S / 2, S / 2, 4, S / 2, S / 2, S * rad);
+  g.addColorStop(0, 'rgba(' + glow + ',.5)');
+  g.addColorStop(1, 'rgba(' + glow + ',0)');
+  c2.fillStyle = g;
+  c2.fillRect(0, 0, S, S);
+  drawFruitOn(c2, S / 2, S / 2, k, 1.5);
+  FRUIT_SPRITES[k] = cv;
+  return cv;
+}
+
 function drawFruits() {
   for (let i = 0; i < game.fruits.length; i++) {
     const f = game.fruits[i];
     if (f.taken) continue;
     const pulse = 1 + 0.08 * Math.sin(game.time * 3.2 + i * 2.1);
     const bob = Math.sin(game.time * 2 + i * 1.3) * 5;
-    const glow = f.v >= 20 ? 'rgba(255,80,80,.6)' : f.v >= 10 ? 'rgba(120,255,140,.5)' : 'rgba(255,220,90,.45)';
-    ctx.save();
-    ctx.shadowColor = glow; ctx.shadowBlur = f.v >= 10 ? 16 : 10;
-    drawFruit(f.x, f.y + bob, f.k, pulse);
-    ctx.restore();
+    const sz = 44 * pulse;
+    ctx.drawImage(fruitSprite(f.k), f.x - sz / 2, f.y + bob - sz / 2, sz, sz);
     if (f.v >= 10) { /* value chip so risk/reward reads at a glance */
       ctx.save();
       ctx.font = '900 12px Heebo, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(36,31,58,.75)';
-      roundRect(f.x - 12, f.y + bob + 16, 24, 15, 7); ctx.fill();
+      roundRect(f.x - 12, f.y + bob + 14, 24, 15, 7); ctx.fill();
       ctx.fillStyle = '#ffd94d';
-      ctx.fillText(String(f.v), f.x, f.y + bob + 24);
+      ctx.fillText(String(f.v), f.x, f.y + bob + 22);
       ctx.restore();
     }
   }
@@ -605,9 +629,32 @@ function drawPops() {
 }
 
 /* edge cue for trampoline pads sitting off-screen: a red bouncing chevron
-   at the nearest screen edge, clamped to the pad's screen x. */
+   at the nearest screen edge, clamped to the pad's screen x. Sprite-based:
+   no per-frame shadowBlur (mobile GPU raster smear guard). */
+let CUE_SPRITE = null;
+function cueSprite() {
+  if (CUE_SPRITE) return CUE_SPRITE;
+  const S = 56, cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const c2 = cv.getContext('2d');
+  const g = c2.createRadialGradient(S / 2, S / 2, 2, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,60,60,.5)');
+  g.addColorStop(1, 'rgba(255,60,60,0)');
+  c2.fillStyle = g;
+  c2.fillRect(0, 0, S, S);
+  c2.translate(S / 2, S / 2);
+  c2.fillStyle = '#ff5252'; c2.strokeStyle = '#ffffff'; c2.lineWidth = 2.5;
+  c2.beginPath(); c2.moveTo(-13, 7); c2.lineTo(0, -7); c2.lineTo(13, 7); c2.closePath();
+  c2.fill(); c2.stroke();
+  c2.globalAlpha = 0.75;
+  c2.beginPath(); c2.moveTo(-13, 14); c2.lineTo(0, 1); c2.lineTo(13, 14); c2.closePath();
+  c2.fill(); c2.stroke();
+  CUE_SPRITE = cv;
+  return cv;
+}
 function drawPadCues(L, cam) {
   if (game.state !== 'play' && game.state !== 'intro') return;
+  const spr = cueSprite();
   for (const pd of L.pads) {
     const cx = (pd.x1 + pd.x2) / 2, cy = (pd.y1 + pd.y2) / 2;
     const sx = cx - cam.x + W / 2, sy = cy - cam.y + H / 2;
@@ -619,18 +666,8 @@ function drawPadCues(L, cam) {
     const x = Math.max(34, Math.min(W - 34, sx));
     ctx.save();
     ctx.translate(x, edgeY + (up ? -hop : hop));
-    ctx.shadowColor = 'rgba(255,60,60,.8)'; ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ff5252'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    if (up) { ctx.moveTo(-13, 7); ctx.lineTo(0, -7); ctx.lineTo(13, 7); }
-    else { ctx.moveTo(-13, -7); ctx.lineTo(0, 7); ctx.lineTo(13, -7); }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    /* second smaller chevron for emphasis */
-    ctx.globalAlpha = 0.75;
-    ctx.beginPath();
-    if (up) { ctx.moveTo(-13, 14); ctx.lineTo(0, 1); ctx.lineTo(13, 14); }
-    else { ctx.moveTo(-13, -14); ctx.lineTo(0, -1); ctx.lineTo(13, -14); }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (!up) ctx.scale(1, -1); // sprite is the up chevron
+    ctx.drawImage(spr, -28, -28);
     ctx.restore();
   }
 }
@@ -673,9 +710,7 @@ function drawHUD() {
   ctx.fillText(String(n + 1), bx + bw + 26, by + bh / 2 + 1);
   // run points counter, top right (apple chip + total below)
   const sx = W - 34, sy = narrow ? 90 : 26;
-  ctx.shadowColor = 'rgba(255,220,90,.6)'; ctx.shadowBlur = 8;
-  drawFruit(sx, sy, 'apple', 0.9);
-  ctx.shadowBlur = 0;
+  ctx.drawImage(fruitSprite('apple'), sx - 13, sy - 13, 26, 26);
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'right';
   ctx.font = '900 17px Heebo, sans-serif';
@@ -711,7 +746,7 @@ function frame(ts) {
     const st = game.world.getState();
     const spd = Math.hypot(st.player.vx, st.player.vy);
     if ((st.rope && spd > 260) || spd > 520) {
-      game.particles.trail(st.player.x, st.player.y, { count: 1 });
+      game.particles.trail(st.player.x, st.player.y, st.player.vx, st.player.vy, { count: 1 });
     }
     if (game.state === 'play') game.playTime += dt;
     game.shake *= Math.exp(-5 * dt);
