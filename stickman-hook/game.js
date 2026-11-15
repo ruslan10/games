@@ -345,8 +345,9 @@ function win() {
   // simulating through the clear celebration instead of freezing.
   const pl = game.world.player;
   const hero = game.body === 'super'; // גיבור על: longer, faster fly-off
-  pl.vx = Math.max(pl.vx, hero ? 1000 : 760);
-  pl.vy = Math.min(pl.vy, hero ? -1050 : -820);
+  // capped launch: the hero should soar but stay in frame through the zoom
+  pl.vx = Math.max(pl.vx * 0.4, hero ? 560 : 380);
+  pl.vy = Math.min(pl.vy * 0.4, hero ? -640 : -460);
   game.clearTimer = hero ? 2.0 : 1.6;
   // finish-moment celebration: freeze hit -> slow-mo + zoom-in -> ramp back.
   // timeline (real seconds): 0-0.09 freeze, 0.09-0.28 ramp in, hold to 0.78,
@@ -806,9 +807,9 @@ function frame(ts) {
     const eo = f => 1 - (1 - f) * (1 - f);
     const eio = f => f < 0.5 ? 2 * f * f : 1 - 2 * (1 - f) * (1 - f);
     if (ct < 0.09) game.zoom = 1;
-    else if (ct < 0.30) game.zoom = 1 + 0.30 * eo((ct - 0.09) / 0.21);
-    else if (ct < 0.80) game.zoom = 1.30;
-    else if (ct < 1.10) game.zoom = 1.30 - 0.30 * eio((ct - 0.80) / 0.30);
+    else if (ct < 0.30) game.zoom = 1 + 0.65 * eo((ct - 0.09) / 0.21);
+    else if (ct < 0.80) game.zoom = 1.65;
+    else if (ct < 1.10) game.zoom = 1.65 - 0.65 * eio((ct - 0.80) / 0.30);
     else game.zoom = 1;
     if (ct >= 0.4 && !game.celebration.wave2) {
       game.celebration.wave2 = true;
