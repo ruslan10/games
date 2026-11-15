@@ -34,7 +34,7 @@
 (function(root){
   'use strict';
   const TAU=Math.PI*2;
-  const colors={skyTop:'#69cef9',skyBottom:'#e0f9ff',cloud:'#ffffff',sun:'#fff2a7',hillFar:'#b4d4f7',hillMid:'#91d9ce',hillNear:'#60c8b2',player:'#ff586a',playerShade:'#d8305a',playerLight:'#ff9b91',eye:'#fff7ef',anchor:'#ffffff',anchorCore:'#6658c8',anchorRing:'#9484e9',spark:'#ffe881',trail:'#ffffff',dust:'#dff8ee',confetti:['#ff6078','#ffe17b','#7967dd','#ffffff','#57dfc4']};
+  const colors={hogBlue:'#2f9bf0',hogBlueD:'#1d6fd0',hogBlueL:'#8fd0ff',hogTan:'#f7cf9f',hogTanD:'#e0aa6e',hogRed:'#e63b3b',hogRedD:'#b71f2e',hogRedL:'#ff8a7a',skyTop:'#69cef9',skyBottom:'#e0f9ff',cloud:'#ffffff',sun:'#fff2a7',hillFar:'#b4d4f7',hillMid:'#91d9ce',hillNear:'#60c8b2',player:'#ff586a',playerShade:'#d8305a',playerLight:'#ff9b91',eye:'#fff7ef',anchor:'#ffffff',anchorCore:'#6658c8',anchorRing:'#9484e9',spark:'#ffe881',trail:'#ffffff',dust:'#dff8ee',confetti:['#ff6078','#ffe17b','#7967dd','#ffffff','#57dfc4']};
   const defaults={colors,playerSize:1,lineWidth:6.5,headRadius:10,anchorRadius:10,cloudScale:1,hillHeight:1,particleScale:1,reducedMotion:false};
   let config=Object.assign({},defaults,{colors:Object.assign({},colors)});
   const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -48,13 +48,16 @@
   function disk(ctx,x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,Math.max(.01,r),0,TAU);ctx.fill();}
   function line(ctx,points,color,width){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(...points[0]);for(let i=1;i<points.length;i++)ctx.lineTo(...points[i]);ctx.stroke();}
   /* Chibi hedgehog hero (variant A, original art): big head, small body,
-     swept blue quills, tan muzzle/belly, red shoes. Hip at local (0,0);
-     concept units are scaled by 0.4 so the hero is ~72 px tall at scale 1. */
-  const HC={blue:'#2f9bf0',blueD:'#1d6fd0',blueL:'#8fd0ff',tan:'#f7cf9f',tanD:'#e0aa6e',red:'#e63b3b',redD:'#b71f2e',redL:'#ff8a7a'};
+     swept quills, tan muzzle/belly, red shoes. Hip at local (0,0);
+     concept units are scaled by 0.32 so the hero is ~58 px tall at scale 1.
+     Coat colors come from the palette (hogBlue/hogBlueD/hogBlueL etc.) so
+     unlockable skins can recolor the hero via configure({colors}). */
   const INK='#23213a',WHITE='#ffffff',GREEN='#2fbf71';
   function drawPlayer(ctx,s={}){
     const t=s.time||0,pose=s.pose||'idle',rm=setting(s,'reducedMotion');
-    const scale=(s.scale===undefined?1:s.scale)*setting(s,'playerSize')*0.4;
+    const pc=palette(s);
+    const HC={blue:pc.hogBlue,blueD:pc.hogBlueD,blueL:pc.hogBlueL,tan:pc.hogTan,tanD:pc.hogTanD,red:pc.hogRed,redD:pc.hogRedD,redL:pc.hogRedL};
+    const scale=(s.scale===undefined?1:s.scale)*setting(s,'playerSize')*0.32;
     const facing=s.facing<0?-1:1;
     const angle=s.angle||0;
     const curl=clamp(s.curl===undefined?0:s.curl),stretch=clamp(s.stretch||0);

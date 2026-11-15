@@ -22,13 +22,16 @@ const ctx = canvas.getContext('2d');
 const $ = id => document.getElementById(id);
 const ui = {
   menu: $('menu'), intro: $('intro'), clear: $('clear'), pause: $('paused'),
-  fail: $('failflash'),
+  fail: $('failflash'), winflash: $('winflash'),
+  levelsel: $('levelsel'), levelGrid: $('level-grid'),
   btnPlay: $('btn-play'), btnGo: $('btn-go'), btnNext: $('btn-next'),
   btnPause: $('btn-pause'), btnResume: $('btn-resume'), btnMute: $('btn-mute'),
-  btnRestart: $('btn-restart'),
+  btnRestart: $('btn-restart'), btnLevels: $('btn-levels'),
+  btnLevelsClose: $('btn-levels-close'), btnPauseLevels: $('btn-pause-levels'),
+  btnPrevLv: $('btn-prev-lv'), btnNextLv: $('btn-next-lv'),
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
-  clearTitle: $('clear-title'),
+  clearTitle: $('clear-title'), clearTime: $('clear-time'), skins: $('skins'),
 };
 
 /* ---------- persistent state ---------- */
@@ -39,7 +42,43 @@ const store = {
   set pct(v) { localStorage.setItem('sh_pct', Math.min(100, Math.round(v))); },
   get mute() { return localStorage.getItem('sh_mute') === '1'; },
   set mute(v) { localStorage.setItem('sh_mute', v ? '1' : '0'); },
+  get skin() { return +(localStorage.getItem('sh_skin') || 0); },
+  set skin(v) { localStorage.setItem('sh_skin', v); },
+  get done() { return localStorage.getItem('sh_done') === '1'; },
+  set done(v) { localStorage.setItem('sh_done', v ? '1' : '0'); },
+  best(i) { const v = +(localStorage.getItem('sh_best_' + i) || 0); return v > 0 ? v : null; },
+  setBest(i, t) { localStorage.setItem('sh_best_' + i, t); },
 };
+
+/* ---------- unlockable hero skins (poki weekly-skins spirit) ---------- */
+const SKINS = [
+  { name: 'כחול', at: 1,  c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
+  { name: 'אש',   at: 5,  c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'ליים', at: 10, c: { hogBlue: '#4ec94f', hogBlueD: '#2f9e35', hogBlueL: '#a9f0a5' } },
+  { name: 'סגול', at: 15, c: { hogBlue: '#a05ce8', hogBlueD: '#7c3cc6', hogBlueL: '#d6b2ff' } },
+  { name: 'זהב',  at: 20, c: { hogBlue: '#ffb020', hogBlueD: '#d98c08', hogBlueL: '#ffe08a' } },
+  { name: 'ורוד', at: 25, c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+];
+function skinUnlocked(i) { return store.level >= SKINS[i].at; }
+function applySkin() {
+  const i = skinUnlocked(store.skin) ? store.skin : 0;
+  V.configure({ colors: SKINS[i].c });
+}
+function renderSkins() {
+  ui.skins.innerHTML = '';
+  SKINS.forEach((sk, i) => {
+    const b = document.createElement('button');
+    b.className = 'skin-dot' + (i === store.skin && skinUnlocked(i) ? ' sel' : '') + (skinUnlocked(i) ? '' : ' locked');
+    b.style.background = sk.c.hogBlue;
+    b.title = sk.name + (skinUnlocked(i) ? '' : ' (נפתח בשלב ' + sk.at + ')');
+    b.textContent = skinUnlocked(i) ? '' : sk.at;
+    b.addEventListener('click', () => {
+      if (!skinUnlocked(i)) return;
+      store.skin = i; applySkin(); renderSkins(); sfx.click();
+    });
+    ui.skins.appendChild(b);
+  });
+}
 
 /* ---------- audio: tiny synth ---------- */
 let AC = null;
@@ -62,6 +101,7 @@ const sfx = {
   fail: () => tone(220, 0.30, 'sawtooth', 0.08, 70),
   win: () => { tone(523, .12, 'sine', .12); setTimeout(() => tone(659, .12, 'sine', .12), 110); setTimeout(() => tone(784, .22, 'sine', .12), 220); },
   click: () => tone(440, 0.06, 'sine', 0.06),
+  jump: () => tone(320, 0.13, 'square', 0.08, 760),
 };
 
 /* ---------- canvas sizing ---------- */
@@ -86,6 +126,8 @@ const game = {
   clearTimer: 0,
   failTimer: 0,
   lastPose: null,
+  shake: 0,
+  playTime: 0,
 };
 
 function buildWorld() {
@@ -117,20 +159,27 @@ function setState(s) {
   ui.intro.classList.toggle('show', s === 'intro');
   ui.clear.classList.toggle('show', s === 'clear');
   ui.pause.classList.toggle('show', s === 'paused');
+  if (s !== 'levelsel') ui.levelsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
   if (s === 'menu') {
     ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length;
+    renderSkins();
   }
   if (s === 'intro') {
     ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1) + ' / ' + LEVELS.length;
     ui.introName.textContent = game.level.name || '';
     ui.introHint.textContent = game.level.hint || '';
+    ui.btnPrevLv.disabled = game.levelIndex <= 0;
+    ui.btnNextLv.disabled = game.levelIndex + 1 > store.level - 1 || game.levelIndex >= LEVELS.length - 1;
   }
   if (s === 'clear') {
     const last = game.levelIndex >= LEVELS.length - 1;
     ui.clearTitle.textContent = last ? 'כל הכבוד! סיימת את כל השלבים!' : 'השלב הושלם!';
     ui.btnNext.textContent = last ? 'שחקו שוב' : 'השלב הבא';
     ui.clearPct.textContent = store.pct + '%';
+    ui.clearTime.textContent = game.lastTime
+      ? 'זמן: ' + game.lastTime + 'שנ' + (game.newBest ? ' 🏆 שיא חדש!' : (store.best(game.levelIndex) ? ' | שיא: ' + store.best(game.levelIndex) + 'שנ' : ''))
+      : '';
     requestAnimationFrame(() => { ui.clearFill.style.width = store.pct + '%'; });
   }
 }
@@ -140,17 +189,30 @@ function startLevel(i) {
   setState('intro');
 }
 
-function beginPlay() { setState('play'); sfx.click(); }
+function beginPlay() { game.playTime = 0; setState('play'); sfx.click(); }
 
 function win() {
   if (game.state !== 'play') return;
   game.state = 'clearing';
   game.clearTimer = 1.1;
   const p = game.world.player;
-  game.particles.confetti(p.x + 60, p.y - 120, { count: 90 });
+  const L = game.level;
+  game.particles.confetti(p.x + 60, p.y - 120, { count: 140 });
+  game.particles.confetti(L.finishX + 18, 260, { count: 70, spread: 520 });
+  game.particles.attach(L.finishX + 18, 380, { count: 22 });
+  game.shake = Math.max(game.shake, 12);
+  ui.winflash.classList.remove('show');
+  void ui.winflash.offsetWidth;
+  ui.winflash.classList.add('show');
   sfx.win();
+  const t = game.playTime;
+  const prevBest = store.best(game.levelIndex);
+  game.newBest = !prevBest || t < prevBest;
+  if (game.newBest) store.setBest(game.levelIndex, Math.round(t * 10) / 10);
+  game.lastTime = Math.round(t * 10) / 10;
+  if (game.levelIndex >= LEVELS.length - 1) store.done = true;
   store.level = Math.min(game.levelIndex + 2, LEVELS.length);
-  store.pct = store.pct + 20;
+  store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
   game.world.setHeld(false);
 }
 
@@ -165,7 +227,13 @@ function fail() {
 
 /* ---------- input ---------- */
 let pointerHeld = false;
-function press() { if (game.state !== 'play') return; pointerHeld = true; game.world.setHeld(true); }
+function press() {
+  if (game.state !== 'play') return;
+  pointerHeld = true;
+  const result = game.world.tap();
+  if (result === 'jump' || result === 'hop') { sfx.jump(); game.shake = Math.max(game.shake, 2); }
+  game.world.setHeld(true);
+}
 function releasePress() { if (!pointerHeld) return; pointerHeld = false; if (game.world) game.world.setHeld(false); }
 canvas.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
 window.addEventListener('pointerup', releasePress);
@@ -191,6 +259,33 @@ ui.btnRestart.addEventListener('click', () => { sfx.click(); buildWorld(); setSt
 function renderMute() { ui.btnMute.textContent = store.mute ? '🔇' : '🔊'; }
 ui.btnMute.addEventListener('click', () => { store.mute = !store.mute; renderMute(); sfx.click(); });
 renderMute();
+
+/* ---------- level select + prev/next ---------- */
+function renderLevelGrid() {
+  ui.levelGrid.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const unlocked = i <= store.level - 1;
+    b.className = 'lv-btn' + (i < store.level - 1 || store.done ? ' done' : i === store.level - 1 ? ' current' : ' locked');
+    b.textContent = unlocked ? String(i + 1) : '🔒';
+    b.disabled = !unlocked;
+    const best = store.best(i);
+    if (best) b.title = 'שיא: ' + best + 'שנ';
+    b.addEventListener('click', () => {
+      if (!unlocked) return;
+      sfx.click(); ui.levelsel.classList.remove('show'); startLevel(i);
+    });
+    ui.levelGrid.appendChild(b);
+  });
+}
+function openLevelSel() { renderLevelGrid(); ui.levelsel.classList.add('show'); sfx.click(); }
+ui.btnLevels.addEventListener('click', openLevelSel);
+ui.btnPauseLevels.addEventListener('click', openLevelSel);
+ui.btnLevelsClose.addEventListener('click', () => { ui.levelsel.classList.remove('show'); sfx.click(); });
+ui.btnPrevLv.addEventListener('click', () => { if (game.levelIndex > 0) { sfx.click(); startLevel(game.levelIndex - 1); } });
+ui.btnNextLv.addEventListener('click', () => {
+  if (game.levelIndex + 1 <= store.level - 1 && game.levelIndex < LEVELS.length - 1) { sfx.click(); startLevel(game.levelIndex + 1); }
+});
 
 /* ---------- pose selection ---------- */
 function pickPose(p, rope) {
@@ -283,15 +378,20 @@ function frame(ts) {
     /* events -> juice */
     for (const ev of game.world.drainEvents()) {
       const p = game.world.player;
-      if (ev.type === 'attach') { game.particles.attach(ev.x, ev.y, { count: 8 }); sfx.attach(); }
+      if (ev.type === 'attach') { game.particles.attach(ev.x, ev.y, { count: 8 }); sfx.attach(); game.shake = Math.max(game.shake, 1.5); }
       else if (ev.type === 'release') { sfx.release(); }
-      else if (ev.type === 'pad') { game.particles.land(p.x, p.y + 14, { count: 14 }); sfx.pad(); }
+      else if (ev.type === 'pad') { game.particles.land(p.x, p.y + 14, { count: 14 }); sfx.pad(); game.shake = Math.max(game.shake, 4); }
+      else if (ev.type === 'jump') { game.particles.land(p.x, p.y + 12, { count: 10 }); }
     }
-    /* swing trail */
+    /* motion trail: swinging fast or flying fast */
     const st = game.world.getState();
-    if (st.rope && Math.hypot(st.player.vx, st.player.vy) > 260) {
+    const spd = Math.hypot(st.player.vx, st.player.vy);
+    if ((st.rope && spd > 260) || spd > 520) {
       game.particles.trail(st.player.x, st.player.y, { count: 1 });
     }
+    if (game.state === 'play') game.playTime += dt;
+    game.shake *= Math.exp(-5 * dt);
+    if (game.shake < 0.05) game.shake = 0;
     const p = game.world.player;
     if (game.state === 'play') {
       if (p.x >= game.level.finishX) win();
@@ -320,7 +420,27 @@ function render() {
   V.drawBackground(ctx, { x: cam.x, y: cam.y, width: W, height: H, time: game.time, colors: COLORS });
 
   ctx.save();
+  if (game.shake > 0) ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
   ctx.translate(W / 2 - cam.x, H / 2 - cam.y);
+
+  /* speed lines at very high velocity */
+  const spdNow = Math.hypot(st.player.vx, st.player.vy);
+  if (spdNow > 950) {
+    const a = Math.min(0.45, (spdNow - 950) / 1000);
+    const ux = st.player.vx / spdNow, uy = st.player.vy / spdNow;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')';
+    ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      const ox = (Math.random() - 0.5) * 340 - ux * (60 + Math.random() * 120);
+      const oy = (Math.random() - 0.5) * 340 - uy * (60 + Math.random() * 120);
+      ctx.beginPath();
+      ctx.moveTo(st.player.x + ox, st.player.y + oy);
+      ctx.lineTo(st.player.x + ox - ux * 70, st.player.y + oy - uy * 70);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   drawFinish(L);
   drawPads(L);
@@ -356,6 +476,7 @@ function render() {
 }
 
 /* ---------- boot ---------- */
+applySkin();
 resize();
 loadLevel(store.level - 1);
 setState('menu');

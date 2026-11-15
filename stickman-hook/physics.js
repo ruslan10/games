@@ -56,7 +56,7 @@
     reset(p){
       this.player=Object.assign({},this._initial,p);this.player.radius=Math.max(1,this.player.radius);
       this.rope=null;this.held=false;this.tick=0;this.time=0;this.accumulator=0;
-      this.events=[];this._padTimes=new Map();this._contact=false;
+      this.events=[];this._padTimes=new Map();this._contact=false;this._airHops=1;
       this.camera={x:this.player.x+this.options.cameraOffsetX,y:this.player.y+this.options.cameraOffsetY};
       return this;
     }
@@ -76,12 +76,31 @@
       const p=this.player,o=this.options,dx=p.x-a.x,dy=p.y-a.y,d=Math.hypot(dx,dy);
       if(d>o.catchRadius)return false;
       const len=clamp(finite(length,d),o.minRope,o.maxRope);
-      this.rope={anchor:a,length:len};this._solveRope();
+      this.rope={anchor:a,length:len};this._solveRope();this._airHops=1;
       this._event('attach',{anchorId:a.id,length:len});return true;
     }
     release(){
       this.held=false;if(this.rope){this._event('release',{anchorId:this.rope.anchor.id,vx:this.player.vx,vy:this.player.vy});this._lastRelease={id:this.rope.anchor.id,time:this.time};this.rope=null;}
       return this;
+    }
+    /* tap(): poki-style tap. Hook the nearest in-range anchor; with no anchor
+       in range, hop in the current direction (ground jump when in contact,
+       one air-hop per airtime otherwise). Returns what happened. */
+    tap(){
+      if(this.rope)return 'swing';
+      const a=this.nearestAnchor();
+      if(a){this.attach(a);return 'hook';}
+      const p=this.player,dir=Math.sign(p.vx||this.options.forward);
+      if(this._contact){
+        p.vy=Math.min(p.vy,0)-620;p.vx+=260*dir;
+        this._event('jump',{kind:'ground'});return 'jump';
+      }
+      if(this._airHops>0){
+        this._airHops--;
+        p.vy=Math.min(p.vy,0)-430;p.vx+=210*dir;
+        this._event('jump',{kind:'air'});return 'hop';
+      }
+      return 'none';
     }
     update(dt){
       if(!Number.isFinite(dt)||dt<0)throw new RangeError('dt must be finite and nonnegative');
@@ -172,7 +191,7 @@
         if(this._groundNormal){const n=this._groundNormal,tx=-n.y,ty=n.x,vt=p.vx*tx+p.vy*ty;
           const f=1-Math.exp(-o.terrainFriction*60*s);p.vx-=vt*tx*f;p.vy-=vt*ty*f;}
       }
-      if(contact&&!this._contact)this._event('terrain',{});this._contact=contact;
+      if(contact&&!this._contact)this._event('terrain',{});this._contact=contact;if(this._contact)this._airHops=1;
       const cx=p.x+o.cameraOffsetX+clamp(p.vx*o.cameraLookahead,-o.cameraMaxLookahead,o.cameraMaxLookahead);
       const cy=p.y+o.cameraOffsetY+clamp(p.vy*o.cameraLookahead*0.45,-o.cameraMaxLookahead/2,o.cameraMaxLookahead/2);
       const k=1-Math.exp(-o.cameraSharpness*h);this.camera.x+=(cx-this.camera.x)*k;this.camera.y+=(cy-this.camera.y)*k;
