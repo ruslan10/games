@@ -111,6 +111,7 @@ const ui = {
   levelsel: $('levelsel'), levelGrid: $('level-grid'),
   btnPlay: $('btn-play'), btnGo: $('btn-go'), btnNext: $('btn-next'),
   btnPause: $('btn-pause'), btnResume: $('btn-resume'), btnMute: $('btn-mute'),
+  btnIntroLevels: $('btn-intro-levels'), btnIntroChars: $('btn-intro-chars'),
   btnRestart: $('btn-restart'), btnLevels: $('btn-levels'),
   btnLevelsClose: $('btn-levels-close'), btnPauseLevels: $('btn-pause-levels'),
   btnPrevLv: $('btn-prev-lv'), btnNextLv: $('btn-next-lv'),
@@ -351,6 +352,8 @@ function setState(s) {
   if (s !== 'levelsel') ui.levelsel.classList.remove('show');
   ui.charsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
+  ui.btnIntroLevels.style.display = (s === 'intro') ? 'flex' : 'none';
+  ui.btnIntroChars.style.display = (s === 'intro') ? 'flex' : 'none';
   if (s === 'menu') {
     ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ' + store.totalPts() + ' נקודות  •  ⭐ ' + Math.floor(store.totalPts() / 100);
     renderCharGrid();
@@ -553,6 +556,8 @@ function openLevelSel() { renderLevelGrid(); ui.levelsel.classList.add('show'); 
 ui.btnChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
 ui.btnCharsClose.addEventListener('click', () => { ui.charsel.classList.remove('show'); sfx.click(); });
 ui.btnLevels.addEventListener('click', openLevelSel);
+ui.btnIntroLevels.addEventListener('click', openLevelSel);
+ui.btnIntroChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
 ui.btnPauseLevels.addEventListener('click', openLevelSel);
 ui.btnLevelsClose.addEventListener('click', () => { ui.levelsel.classList.remove('show'); sfx.click(); });
 ui.btnPrevLv.addEventListener('click', () => { if (game.levelIndex > 0) { sfx.click(); startLevel(game.levelIndex - 1); } });

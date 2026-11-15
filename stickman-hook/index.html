@@ -66,6 +66,9 @@
     backdrop-filter: blur(2px); }
   #btn-pause { top: 14px; left: 14px; }
   #btn-mute { top: 14px; left: 76px; display: flex !important; }
+  #btn-intro-levels { top: 14px; left: 138px; }
+  #btn-intro-chars { top: 14px; left: 200px; }
+  #btn-intro-levels svg, #btn-intro-chars svg { width: 26px; height: 26px; }
   .row { display: flex; gap: 14px; }
 
   /* ---- win flash ---- */
@@ -158,6 +161,8 @@
 
 <button class="iconbtn" id="btn-pause" aria-label="השהיה">⏸</button>
 <button class="iconbtn" id="btn-mute" aria-label="צליל">🔊</button>
+<button class="iconbtn" id="btn-intro-levels" aria-label="בחירת שלב"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="2.2"/><rect x="13" y="3" width="8" height="8" rx="2.2"/><rect x="3" y="13" width="8" height="8" rx="2.2"/><rect x="13" y="13" width="8" height="8" rx="2.2"/></svg></button>
+<button class="iconbtn" id="btn-intro-chars" aria-label="דמויות"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.6" r="4.2"/><path d="M12 13.2c-4.1 0-7.4 2.7-7.9 6.4a1.4 1.4 0 0 0 1.4 1.6h13a1.4 1.4 0 0 0 1.4-1.6c-.5-3.7-3.8-6.4-7.9-6.4z"/></svg></button>
 
 <div class="overlay show" id="menu">
   <div class="logo">סטיקמן <span class="red">הוק</span></div>
