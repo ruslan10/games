@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>סטיקמן הוק</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    overflow: hidden;
+    background: #7ec8f0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  #hud {
+    position: fixed;
+    top: 12px; right: 12px;
+    background: rgba(0,0,0,.45);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 15px;
+    pointer-events: none;
+  }
+  #overlay {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,14,30,.72);
+    color: #fff;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 { font-size: 2.2rem; margin-bottom: 10px; }
+  #overlay p { color: #c9d2f5; max-width: 420px; line-height: 1.7; margin-bottom: 18px; }
+  #overlay button {
+    background: #ffb020;
+    color: #20180a;
+    border: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 12px 34px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  #overlay button:active { transform: scale(.96); }
+  #home {
+    position: fixed;
+    top: 12px; left: 12px;
+    background: rgba(0,0,0,.45);
+    color: #fff;
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">שלב <span id="lvl">1</span></div>
+<a id="home" href="../../">🏠 בית</a>
+<div id="overlay">
+  <h1 id="ov-title">🕸️ סטיקמן הוק</h1>
+  <p id="ov-text">לחצו והחזיקו (או מקש רווח) כדי לתפוס נקודת עיגון עם הוו, שחררו כדי לעוף קדימה. הגיעו לדגל הסיום! אם נופלים - מתחילים את השלב מחדש.</p>
+  <button id="ov-btn">התחילו לשחק</button>
+</div>
+<script>
+"use strict";
+// סטיקמן הוק - משחק נדנדה מקורי בפיזיקת מטוטלת. כל הקוד והצורות נכתבו מאפס.
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const hudLvl = document.getElementById("lvl");
+const overlay = document.getElementById("overlay");
+const ovTitle = document.getElementById("ov-title");
+const ovText = document.getElementById("ov-text");
+const ovBtn = document.getElementById("ov-btn");
+
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---- שלבים: נקודות עיגון (x, y), משטחי קפיצה (x, y, רדיוס), ומיקום הדגל ----
+const LEVELS = [
+  {
+    anchors: [[400,220],[680,190],[960,220],[1240,190],[1520,220],[1800,190]],
+    pads: [[150,500],[820,520],[1380,520]],
+    finish: 1960, spawn: [150, 380]
+  },
+  {
+    anchors: [[420,200],[700,160],[980,230],[1260,170],[1540,240],[1820,170],[2100,220]],
+    pads: [[150,500],[840,520],[1400,540],[1960,520]],
+    finish: 2260, spawn: [150, 380]
+  },
+  {
+    anchors: [[400,180],[640,260],[920,150],[1180,280],[1450,160],[1720,270],[1980,150],[2240,240],[2500,180]],
+    pads: [[150,500],[1060,540],[1840,540]],
+    finish: 2660, spawn: [150, 380]
+  },
+  {
+    anchors: [[420,170],[660,290],[920,150],[1160,300],[1420,160],[1660,300],[1920,150],[2160,280],[2420,160],[2660,250],[2920,170]],
+    pads: [[150,500],[1040,560],[2040,560]],
+    finish: 3080, spawn: [150, 380]
+  }
+];
+
+const GRAV = 0.5;
+const HOOK_RANGE = 400;
+const AIR_DRAG = 0.998;
+const MAX_SPEED = 22;
+
+const player = { x: 0, y: 0, vx: 0, vy: 0, r: 12 };
+let hook = null;          // {x, y, len}
+let levelIdx = 0;
+let camX = 0;
+let running = false;
+let level = null;
+let won = false;
+
+function startLevel(i) {
+  levelIdx = i % LEVELS.length;
+  level = LEVELS[levelIdx];
+  player.x = level.spawn[0];
+  player.y = level.spawn[1];
+  player.vx = 3.5; player.vy = 0;
+  hook = null;
+  won = false;
+  hudLvl.textContent = levelIdx + 1;
+}
+
+function nearestAnchor() {
+  let best = null, bestD = HOOK_RANGE;
+  for (const [ax, ay] of level.anchors) {
+    const dx = ax - player.x, dy = ay - player.y;
+    const d = Math.hypot(dx, dy);
+    // מעדיפים עוגנים שמעל השחקן ומעט קדימה
+    if (d < bestD && ay < player.y + 40) { best = { x: ax, y: ay }; bestD = d; }
+  }
+  return best;
+}
+
+function tryHook() {
+  if (!running || hook) return;
+  const a = nearestAnchor();
+  if (a) hook = { x: a.x, y: a.y, len: Math.min(230, Math.max(60, Math.hypot(player.x - a.x, player.y - a.y))) };
+}
+function release() { hook = null; }
+
+function step() {
+  player.vy += GRAV;
+  player.vx *= AIR_DRAG; player.vy *= AIR_DRAG;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  if (hook) {
+    // אילוץ מטוטלת: מרחק קבוע מהעוגן, בלי רכיב מהירות רדיאלי החוצה
+    const dx = player.x - hook.x, dy = player.y - hook.y;
+    const d = Math.hypot(dx, dy) || 0.0001;
+    const nx = dx / d, ny = dy / d;
+    player.x = hook.x + nx * hook.len;
+    player.y = hook.y + ny * hook.len;
+    const vr = player.vx * nx + player.vy * ny;
+    player.vx -= vr * nx;
+    player.vy -= vr * ny;
+    // שאיבה עדינה קדימה בזמן הנדנדה
+    player.vx += 0.08;
+  }
+
+  // גבול מהירות
+  const sp = Math.hypot(player.vx, player.vy);
+  if (sp > MAX_SPEED) { player.vx *= MAX_SPEED / sp; player.vy *= MAX_SPEED / sp; }
+
+  // משטחי קפיצה
+  for (const [px, py, pr] of level.pads.map(p => [p[0], p[1], p[2] || 26])) {
+    const dx = player.x - px, dy = player.y - py;
+    if (Math.hypot(dx, dy) < pr + player.r && player.vy > 0) {
+      player.vy = -14;
+      player.vx += 2.2;
+    }
+  }
+
+  // נפילה - התחלה מחדש
+  if (player.y - camY0() > H + 260 || player.y > 1400) startLevel(levelIdx);
+
+  // ניצחון
+  if (player.x > level.finish && !won) {
+    won = true;
+    running = false;
+    const last = levelIdx === LEVELS.length - 1;
+    ovTitle.textContent = last ? "🏆 כל השלבים הושלמו!" : "✅ שלב " + (levelIdx + 1) + " הושלם!";
+    ovText.textContent = last ? "סיימת את כל " + LEVELS.length + " השלבים. רוצים עוד סיבוב?" : "יופי נדנדה! מוכנים לשלב הבא?";
+    ovBtn.textContent = last ? "שחקו שוב מההתחלה" : "השלב הבא";
+    overlay.classList.remove("hidden");
+    pendingNext = last ? 0 : levelIdx + 1;
+  }
+}
+
+function camY0() { return 0; }
+
+// ---- ציור ----
+function drawStickman(px, py) {
+  ctx.save();
+  ctx.translate(px, py);
+  const ang = Math.atan2(player.vy, Math.abs(player.vx) + 2) * 0.6;
+  ctx.rotate(ang);
+  const t = performance.now() / 120;
+  const swing = hook ? 0 : Math.sin(t) * 0.5;
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 3; ctx.lineCap = "round";
+  // גוף
+  ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 12); ctx.stroke();
+  // ידיים
+  ctx.beginPath();
+  ctx.moveTo(0, 2);
+  ctx.lineTo(8 * Math.cos(swing), 2 + 8 * Math.sin(swing) + (hook ? -6 : 4));
+  ctx.moveTo(0, 2);
+  ctx.lineTo(-8 * Math.cos(swing), 2 - 8 * Math.sin(swing) + (hook ? -6 : 4));
+  ctx.stroke();
+  // רגליים
+  ctx.beginPath();
+  ctx.moveTo(0, 12); ctx.lineTo(7, 22 + 3 * Math.sin(t));
+  ctx.moveTo(0, 12); ctx.lineTo(-7, 22 - 3 * Math.sin(t));
+  ctx.stroke();
+  // ראש
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = "#222";
+  ctx.beginPath(); ctx.arc(2.5, -12, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  // שמיים
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#8fd3f4"); sky.addColorStop(1, "#e8f7ff");
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+  // מצלמה
+  const targetCam = Math.max(0, player.x - W * 0.35);
+  camX += (targetCam - camX) * 0.12;
+
+  ctx.save();
+  ctx.translate(-camX, 0);
+
+  // גבעות רחוקות (פרלקס)
+  ctx.fillStyle = "rgba(120,180,140,.35)";
+  const hillOff = (camX * 0.4) % 600;
+  for (let i = -1; i < W / 600 + 3; i++) {
+    const hx = camX + i * 600 - hillOff;
+    ctx.beginPath();
+    ctx.arc(hx, H + 120, 320, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // עננים (פרלקס איטי)
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  const cloudOff = (camX * 0.25) % 430;
+  for (let i = -1; i < W / 430 + 3; i++) {
+    const cx = camX + i * 430 - cloudOff;
+    const cy = 60 + ((i * 53) % 120 + 120) % 120;
+    cloud(cx, cy);
+  }
+
+  const viewL = camX - 60, viewR = camX + W + 60;
+
+  // משטחי קפיצה
+  for (const p of level.pads) {
+    const px = p[0], py = p[1], pr = p[2] || 26;
+    if (px < viewL || px > viewR) continue;
+    ctx.fillStyle = "#e6455a";
+    ctx.beginPath(); ctx.arc(px, py, pr, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = "#b32c3f";
+    ctx.fillRect(px - pr, py, pr * 2, 6);
+  }
+
+  // נקודות עיגון
+  for (const [ax, ay] of level.anchors) {
+    if (ax < viewL || ax > viewR) continue;
+    ctx.fillStyle = "#34406b";
+    ctx.beginPath(); ctx.arc(ax, ay, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffb020";
+    ctx.beginPath(); ctx.arc(ax, ay, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // דגל סיום
+  const fx = level.finish;
+  ctx.strokeStyle = "#333"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(fx, 80); ctx.lineTo(fx, H); ctx.stroke();
+  for (let r = 0; r < 12; r++) for (let c = 0; c < 2; c++) {
+    ctx.fillStyle = (r + c) % 2 ? "#111" : "#fff";
+    ctx.fillRect(fx + c * 16, 90 + r * 12, 16, 12);
+  }
+
+  // חבל
+  if (hook) {
+    ctx.strokeStyle = "#5b3a1e"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(player.x, player.y - 6); ctx.lineTo(hook.x, hook.y); ctx.stroke();
+  }
+
+  drawStickman(player.x, player.y);
+  ctx.restore();
+}
+
+function cloud(x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 18, 0, Math.PI * 2);
+  ctx.arc(x + 20, y - 8, 22, 0, Math.PI * 2);
+  ctx.arc(x + 44, y, 18, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+let pendingNext = null;
+function loop() {
+  if (running) step();
+  draw();
+  requestAnimationFrame(loop);
+}
+startLevel(0);
+loop();
+
+// ---- קלט ----
+function press(e) { e.preventDefault(); tryHook(); }
+function lift(e) { e.preventDefault(); release(); }
+canvas.addEventListener("pointerdown", press);
+window.addEventListener("pointerup", lift);
+window.addEventListener("pointercancel", lift);
+window.addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); tryHook(); } });
+window.addEventListener("keyup", e => { if (e.code === "Space") release(); });
+
+ovBtn.addEventListener("click", () => {
+  overlay.classList.add("hidden");
+  startLevel(pendingNext === null ? levelIdx : pendingNext);
+  pendingNext = null;
+  running = true;
+});
+
+// hook בדיקה: #play מדלג על מסך הפתיחה
+if (location.hash === "#play") { overlay.classList.add("hidden"); running = true; }
+</script>
+</body>
+</html>
