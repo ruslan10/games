@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import * as U from '../panels.mjs';
+import * as P from '../progression.mjs';
+const bal=h=>{const o=(h.match(/<div/g)||[]).length,c=(h.match(/<\/div>/g)||[]).length;assert.equal(o,c);const b=(h.match(/<button/g)||[]).length;assert.equal(b,(h.match(/<\/button>/g)||[]).length);};
+const p=P.normalizeProg();let h=U.missionsPanel(P.missionViews(p));bal(h);assert.equal((h.match(/class="mcard/g)||[]).length,3);
+h=U.missionsPanel([{text:'<img src=x onerror=1>',target:10,progress:99,reward:5}]);assert.ok(!h.includes('<img'));assert.ok(h.includes('width:100%'));
+const w={coins:130,prog:p};const rows=P.UPGRADE_IDS.map(id=>({id,name:P.UPGRADES[id].name,desc:P.UPGRADES[id].desc,unit:P.UPGRADES[id].unit,level:P.upgradeLevel(p,id),max:P.UPGRADES[id].values.length-1,cost:P.upgradeCost(p,id),affordable:w.coins>=P.upgradeCost(p,id),nextValue:P.UPGRADES[id].values[1]}));
+h=U.upgradesPanel(rows,130);bal(h);assert.equal((h.match(/data-upgrade=/g)||[]).length,6);assert.ok(/data-upgrade="magnet">/.test(h)&&/data-upgrade="shield" disabled/.test(h));
+rows[0].level=rows[0].max;rows[0].cost=null;h=U.upgradesPanel(rows,0);assert.ok(h.includes('מלא'));
+const i=P.dailyInfo('2026-11-17');h=U.dailyPanel({info:i,goalCoins:40,reward:80,status:{done:false,streak:2,best:7}});bal(h);assert.ok(h.includes('id="dailyplay"')&&h.includes('id="back"')&&h.includes(i.mod.name));
+assert.ok(U.dailyPanel({info:i,status:{done:true}}).includes('כבר קיבלת'));
+assert.ok(U.dailyChip({modName:'x',done:true}).includes('id="daily"'));assert.ok(U.dailyChip({streak:3}).includes('🔥 3'));
+assert.equal(U.finishLines({}),'');assert.equal(U.finishLines({missions:[],coinBonus:0,dailyCoins:0,dailyDone:false}),'');
+h=U.finishLines({missions:[{text:'a',reward:30}],coinBonus:4,dailyCoins:90,dailyDone:true});assert.equal((h.match(/resline/g)||[]).length,3);
+h=U.reviveOffer(60);assert.ok(h.includes('id="revive"')&&h.includes('id="norevive"')&&h.includes('60'));
+assert.doesNotThrow(()=>{U.missionsPanel();U.upgradesPanel();U.dailyPanel();U.reviveOffer(NaN);});
+console.log('panels ok');
