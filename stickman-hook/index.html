@@ -59,7 +59,21 @@
   .pct-label { color: #8a80c0; font-weight: 700; font-size: 15px; margin-bottom: 30px; }
 
   /* ---- pause + corner buttons ---- */
-  #paused { background: rgba(46, 33, 101, .72); }
+  #paused { background: rgba(46, 33, 101, .82); overflow-y: auto; padding: 76px 20px 32px; justify-content: flex-start; }
+  #paused .paused-title { margin-top: auto; flex-shrink: 0; }
+  .pause-actions { display: flex; flex-direction: column; gap: 15px; width: min(300px, 100%); margin-bottom: auto; flex-shrink: 0; padding-bottom: 12px; }
+  #paused .pause-actions .bigbtn { display: block; width: 100%; min-width: 0; padding: 12px 16px; font-size: 19px; border-radius: 20px; text-align: center; text-decoration: none; }
+  #paused .pause-actions .secondary { background: #5e508d; box-shadow: 0 6px 0 #3c315e, 0 10px 18px rgba(0,0,0,.18); }
+  .portal-link { margin-top: 24px; color: #263b51; font-size: 16px; font-weight: 700; text-underline-offset: 4px; }
+  @media (max-width: 380px) { #menu .bigbtn.small { padding: 13px 22px; font-size: 18px; } }
+
+  @media (max-height: 500px) and (min-width: 600px) {
+    #paused { padding: 20px; }
+    #paused .paused-title { font-size: 28px; margin-bottom: 14px; }
+    #paused .pause-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(600px, 100%); gap: 14px; }
+    #paused .pause-actions .bigbtn { font-size: 17px; padding: 9px 12px; }
+    #btn-portal { grid-column: 1 / -1; }
+  }
   .paused-title { color: #fff; font-size: 36px; font-weight: 900; margin-bottom: 26px; }
   .iconbtn { position: fixed; z-index: 20; width: 52px; height: 52px; border-radius: 14px; border: none; cursor: pointer;
     background: rgba(36,31,58,.38); color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center;
@@ -175,6 +189,7 @@
     <button class="bigbtn small" id="btn-chars">דמויות</button>
   </div>
   <div id="menu-level">שלב 1 / 30</div>
+  <a class="portal-link" href="../">לדף הבית של המשחקים</a>
   <div id="skin-toast"></div>
 </div>
 
@@ -216,10 +231,12 @@
 
 <div class="overlay" id="paused">
   <div class="paused-title">השהיה</div>
-  <div class="row">
+  <div class="pause-actions">
     <button class="bigbtn small" id="btn-resume">המשך</button>
     <button class="bigbtn small" id="btn-restart">התחל מחדש</button>
-    <button class="bigbtn small" id="btn-pause-levels">בחירת שלב</button>
+    <button class="bigbtn small secondary" id="btn-pause-levels">בחירת שלב</button>
+    <button class="bigbtn small secondary" id="btn-home">לתפריט המשחק</button>
+    <a class="bigbtn small secondary" id="btn-portal" href="../">לדף הבית של המשחקים</a>
   </div>
 </div>
 

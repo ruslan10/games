@@ -331,7 +331,8 @@ function buildWorld() {
     anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
       boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640,
-      nx: p.nx, ny: p.ny, restitution: p.restitution })),
+      nx: p.nx, ny: p.ny, restitution: p.restitution,
+      standTopOffset: p.kind === 'trampCeil' ? 40 : undefined })),
   }, abil));
   const a = L.anchors.find(a => a.id === L.start.anchorId);
   const off = 130, dy = Math.sqrt(L.start.rope * L.start.rope - off * off);
@@ -537,6 +538,7 @@ ui.btnNext.addEventListener('click', () => {
   startLevel(next);
 });
 ui.btnPause.addEventListener('click', () => { if (game.state === 'play') { setState('paused'); sfx.click(); } });
+$('btn-home').addEventListener('click', () => { releasePress(); sfx.click(); setState('menu'); });
 ui.btnResume.addEventListener('click', () => { if (game.state === 'paused') { setState('play'); sfx.click(); } });
 ui.btnRestart.addEventListener('click', () => { sfx.click(); buildWorld(); setState('play'); });
 function renderMute() { ui.btnMute.textContent = store.mute ? '🔇' : '🔊'; }
@@ -658,6 +660,9 @@ function drawPads(L) {
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       roundRect(2, -17, len - 4, 5, 3); ctx.fill();
       if (p.kind === 'trampCeil') {
+        // Flat, non-spring upper edge: safe to land and stand on.
+        ctx.fillStyle = '#9b92ca';
+        roundRect(0, 36, len, 4, 2); ctx.fill();
         // support column up to the ceiling
         ctx.restore(); ctx.save();
         ctx.fillStyle = '#241f3a';

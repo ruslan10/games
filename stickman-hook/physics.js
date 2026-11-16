@@ -6,6 +6,7 @@
  * World(options): options override DEFAULTS below; player:{x,y,vx,vy,radius};
  * anchors:[{id,x,y,enabled?}]; terrain:[{x,y}] ascending X (solid below);
  * pads:[{id,x1,y1,x2,y2,nx?,ny?,restitution?,minSpeed?,boostX?,boostY?}].
+ * standTopOffset optionally adds a one-way, non-bouncing horizontal top at y1-offset.
  * Pad normal points out of its active face; default is segment's upward normal.
  * minSpeed is outward normal launch speed; boostX/Y are explicit added velocity.
  * Camera x/y are the world-space view CENTER, not its upper-left corner.
@@ -194,6 +195,20 @@
         }
       }
     }
+    _platforms(previous){
+      // The back of a ceiling spring is a one-way resting surface. Its active
+      // underside still uses the original pad collision and downward bounce.
+      const p=this.player;let contact=false;
+      for(const a of this.pads){
+        if(a.enabled===false||!Number.isFinite(a.standTopOffset))continue;
+        const top=a.y1-a.standTopOffset,left=Math.min(a.x1,a.x2),right=Math.max(a.x1,a.x2);
+        if(p.x<left||p.x>right||p.vy<0)continue;
+        if(previous.y+p.radius>top+0.01||p.y+p.radius<top)continue;
+        p.y=top-p.radius;p.vy=0;contact=true;
+        this._groundNormal={x:0,y:-1};
+      }
+      return contact;
+    }
     _tick(){
       if(this.onBeforeStep)this.onBeforeStep(this);
       const p=this.player,o=this.options,h=o.fixedDt;
@@ -225,7 +240,7 @@
         const v=Math.hypot(p.vx,p.vy);if(v>o.maxSpeed){p.vx*=o.maxSpeed/v;p.vy*=o.maxSpeed/v;}
         p.x+=p.vx*s;p.y+=p.vy*s;
         this._pads(prev);this._groundNormal=null;
-        for(let j=0;j<o.collisionIterations;j++){this._solveRope();contact=this._terrain()||contact;}
+        for(let j=0;j<o.collisionIterations;j++){this._solveRope();contact=this._platforms(prev)||contact;contact=this._terrain()||contact;}
         // Terrain wins if the rope and terrain form an impossible constraint.
         // Release rather than place the player in solid ground or jitter forever.
         if(this.rope&&Math.hypot(p.x-this.rope.anchor.x,p.y-this.rope.anchor.y)>this.rope.length+0.5)this.release();
