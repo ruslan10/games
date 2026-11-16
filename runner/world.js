@@ -99,20 +99,35 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  makeHero(character);
  // A soft contact decal anchors the running character even between shadow-map pixels.
  const dc=document.createElement('canvas');dc.width=dc.height=64;const dx=dc.getContext('2d'),grad=dx.createRadialGradient(32,32,0,32,32,31);grad.addColorStop(0,'#00000070');grad.addColorStop(.4,'#00000042');grad.addColorStop(1,'#00000000');dx.fillStyle=grad;dx.fillRect(0,0,64,64);const shadow=new T.Mesh(new T.PlaneGeometry(1.8,1.45),new T.MeshBasicMaterial({map:new T.CanvasTexture(dc),transparent:true,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.035;scene.add(shadow);
- const objects=new T.Group();scene.add(objects);let coins=[],powers=[],coinMesh=null,coinCount=0,obstacleMesh=null,finishMesh=null;const scratch=new T.Object3D();
+ const objects=new T.Group();scene.add(objects);let coins=[],powers=[],movers=[],coinMesh=null,coinCount=0,obstacleMesh=null,finishMesh=null;const scratch=new T.Object3D();
+ // The chaser: a stocky dark street dog that looms behind the runner after a stumble.
+ const chaser=new T.Group();{const c=[];ball(c,0,.62,0,.42,.4,.62,'#3c414d');ball(c,0,.95,-.5,.3,.28,.3,'#454b58');ball(c,0,.88,-.78,.14,.12,.2,'#2c313b');for(const s of [-1,1]){part(c,'cone',s*.16,1.18,-.5,.1,.22,.1,'#2c313b',-.2,0,s*.15);}for(const s of [-1,1]){cyl(c,s*.2,.3,.28,.09,.6,'#333845');cyl(c,s*.2,.3,-.3,.09,.6,'#333845');}part(c,'cone',0,.78,.62,.08,.4,.08,'#333845',1.1,0,0);mesh(c,chaser,true);const eyeM=new T.MeshBasicMaterial({color:'#ff453a',fog:false});for(const s of [-1,1]){const e=new T.Mesh(new T.SphereGeometry(.05,8,6),eyeM);e.position.set(s*.12,1.0,-.78);chaser.add(e);}}chaser.visible=false;scene.add(chaser);
  const coinParts=[];
  function coinPart(g,c){const ca=new Float32Array(g.attributes.position.count*3),co=new T.Color(c);for(let j=0;j<ca.length;j+=3){ca[j]=co.r;ca[j+1]=co.g;ca[j+2]=co.b;}g.setAttribute('color',new T.BufferAttribute(ca,3));coinParts.push(g);}
  coinPart(new T.CylinderGeometry(.3,.3,.09,24).rotateX(Math.PI/2),'#ffc526');
  for(const side of [-1,1]){coinPart(new T.CylinderGeometry(.247,.247,.014,24).rotateX(Math.PI/2).translate(0,0,side*.052),'#e99c12');coinPart(new T.TorusGeometry(.278,.026,6,24).translate(0,0,side*.058),'#ffe477');coinPart(new T.BoxGeometry(.17,.17,.02).rotateZ(Math.PI/4).translate(0,0,side*.071),'#ffde55');}
  const coinGeometry=mergeGeometries(coinParts);
  const gold=new T.MeshStandardMaterial({color:'#ffffff',vertexColors:true,metalness:.12,roughness:.35,emissive:'#8c5d00',emissiveIntensity:.12});
- function clearObjects(){for(const m of [...objects.children]){objects.remove(m);if(m!==coinMesh)m.geometry?.dispose();}coins=[];powers=[];coinMesh=null;}
+ function clearObjects(){for(const m of [...objects.children]){objects.remove(m);if(m!==coinMesh)m.geometry?.dispose();}coins=[];powers=[];movers=[];coinMesh=null;}
  function populate(l){clearObjects();const a=[];for(const o of l.obs){const x=o.lane*2.6,z=-o.x;
  if(o.type==='crate'){rb(a,x,.63,z,1.62,1.26,1.18,'#a96f36');for(let j=0;j<5;j++){b(a,x-.63+j*.315,.63,z+.598,.29,1.08,.04,j%2?'#c18a46':'#b67d3c');b(a,x,.63,z-.598,.29,1.08,.04,'#b98140');}for(const y of [.09,1.17])rb(a,x,y,z+.64,1.67,.16,.12,'#d19a50');for(const xx of [-.73,.73])rb(a,x+xx,.63,z+.65,.16,1.16,.13,'#cf9953');rb(a,x,.63,z+.68,.16,1.67,.095,'#cd9750',0,0,-.87);for(const xx of [-.71,.71])for(const y of [.12,1.14])ball(a,x+xx,y,z+.726,.032,.032,.012,'#6c6654');for(let j=0;j<4;j++)b(a,x-.59+j*.39,1.27,z,.37,.025,1.05,j%2?'#bd8646':'#c28e4c');}
  else if(o.type==='barrier'){rb(a,x,.51,z,1.95,.97,.62,'#ef7d33');for(const xx of [-.73,0,.73])rb(a,x+xx,.52,z+.323,.23,.78,.025,'#fff0d2',0,0,-.48);for(const xx of [-.72,.72]){rb(a,x+xx,.08,z,.45,.16,.91,'#4c5556');rb(a,x+xx,.98,z,.2,.09,.2,'#55595a');}}
+ else if(o.type==='tunnel'){for(const ze of [-3.4,3.4]){for(const xx of [-1,1]){rb(a,x+xx,1.42,z+ze,.22,2.84,.36,'#317b7b');rb(a,x+xx,.09,z+ze,.55,.17,.72,'#465e5c');}rb(a,x,1.9,z+ze,2.5,1.4,.5,'#d6814c');for(let xx=-.85;xx<1;xx+=.42)rb(a,x+xx,1.9,z+ze+.26,.18,1.2,.025,'#ffe8bc',0,0,-.22);}
+  rb(a,x,1.9,z,2.44,1.5,6.6,'#cd7a4a');rb(a,x,2.72,z,2.6,.2,7.2,'#377d7b');for(let zz=-3;zz<=3;zz+=.75)rb(a,x,1.18,z+zz,2.5,.07,.3,'#ffe8bc');}
+ else if(o.type==='ramp'){rb(a,x,.42,z,2.0,.5,3.4,'#c98d4b',.4);rb(a,x,.74,z,1.72,.07,2.9,'#f2c069',.4);for(let j=0;j<3;j++)rb(a,x,.78,z+1.0-j*.95,1.15,.06,.32,'#fff3d6',.4);for(const xx of [-.95,.95])rb(a,x+xx,.5,z,.14,.66,3.2,'#8a5a2e',.4);}
+ else if(o.type==='mover'){/* dynamic mesh below */}
  else {for(const xx of [-1,1]){rb(a,x+xx,1.42,z,.22,2.84,.36,'#317b7b');rb(a,x+xx,.09,z,.55,.17,.72,'#465e5c');}rb(a,x,1.84,z,2.2,1.34,.48,'#d6814c');for(let xx=-.85;xx<1;xx+=.42)rb(a,x+xx,1.84,z+.25,.18,1.15,.025,'#ffe8bc',0,0,-.22);rb(a,x,2.57,z,2.44,.21,.59,'#377d7b');}
- }obstacleMesh=mesh(a,objects,true);coins=l.coins;coinCount=coins.length;coinMesh=new T.InstancedMesh(coinGeometry,gold,coinCount);coinMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);coinMesh.frustumCulled=false;objects.add(coinMesh);
- for(const p of l.powers){const list=[];ball(list,0,1,0,.39,.45,.27,p.type==='shield'?'#76e5dc':'#d49aeb');b(list,0,1.03,.28,.14,.48,.04,'#fff8dc');if(p.type==='magnet')b(list,0,.83,.28,.43,.12,.04,'#fff8dc');const g=mesh(list,objects,false);powers.push({p,g});}
+ }obstacleMesh=mesh(a,objects,true);
+ l.obs.forEach((o,i)=>{if(o.type!=='mover')return;const c=[],body=o.id%2?'#e8a13c':'#5b8fd9';
+  rb(c,0,.62,0,1.7,.7,2.5,body);rb(c,0,1.18,-.1,1.5,.5,1.5,body);rb(c,0,1.2,.68,1.3,.34,.1,'#bfe3f0');rb(c,0,1.2,-.88,1.3,.34,.1,'#bfe3f0');
+  for(const sx of [-1,1]){rb(c,sx*.87,.85,-.1,.06,.4,1.2,'#20303a');for(const sz of [-1,1])cyl(c,sx*.8,.34,sz*.8,.34,.2,'#2b2f33',0,Math.PI/2);rb(c,sx*.55,.6,1.27,.3,.18,.06,'#fff6c8');}
+  rb(c,0,.34,1.29,1.5,.24,.08,'#f5edd8');const g=mesh(c,objects,true);g.position.set(o.lane*2.6,0,-o.x);movers.push({i,g});});coins=l.coins;coinCount=coins.length;coinMesh=new T.InstancedMesh(coinGeometry,gold,coinCount);coinMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);coinMesh.frustumCulled=false;objects.add(coinMesh);
+ for(const p of l.powers){const list=[],col=p.type==='shield'?'#76e5dc':p.type==='magnet'?'#d49aeb':p.type==='shoes'?'#8fe07a':'#86c9f5';
+  ball(list,0,1,0,.39,.45,.27,col);b(list,0,1.03,.28,.14,.48,.04,'#fff8dc');
+  if(p.type==='magnet')b(list,0,.83,.28,.43,.12,.04,'#fff8dc');
+  if(p.type==='shoes'){b(list,0,.76,.3,.36,.13,.18,'#fff8dc');b(list,.1,.7,.38,.16,.1,.12,'#fff8dc');}
+  if(p.type==='flight')for(const s of [-1,1])b(list,s*.32,1.08,.05,.42,.07,.2,'#fff8dc',s*.35);
+  const g=mesh(list,objects,false);powers.push({p,g});}
  const f=[];for(const x of [-4.1,4.1])cyl(f,x,2.9,-l.length,.07,5.8,'#f4e1b7');for(let i=0;i<12;i++)for(let j=0;j<2;j++)b(f,-3.85+i*.7,5.1+j*.55,-l.length,.7,.55,.06,(i+j)%2?'#315c66':'#fff3da');finishMesh=mesh(f,objects,false);}
  let animTime=0,smoothedX=0,lean=0,duck=0,runPhase=0,lastDistance=0,width=390,height=844;
  const stats={frames:0,frameMs:[],calls:0,triangles:0,dpr:renderer.getPixelRatio(),quality:'auto'};let slowFrames=0;
@@ -125,6 +140,8 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  objects.position.z=dist;
  if(coinMesh){let visible=0;const ang=animTime*2.6;for(let i=0;i<coins.length;i++){const c=coins[i],z=dist-c.x;if(c.taken||z>8||z< -130)continue;scratch.position.set(c.lane*2.6,c.y,-c.x);scratch.rotation.set(0,ang,0);scratch.scale.setScalar(1);scratch.updateMatrix();coinMesh.setMatrixAt(visible++,scratch.matrix);}coinMesh.count=visible;coinMesh.instanceMatrix.needsUpdate=true;}
  for(const {p,g} of powers){g.position.set(p.lane*2.6,Math.sin(animTime*3)*.12,-p.x);g.rotation.y=animTime*.7;g.visible=!p.taken&&dist-p.x<10&&dist-p.x>-130;}
+ for(const m of movers){const lf=state&&state.obs?state.obs[m.i].laneF:undefined;if(lf!==undefined)m.g.position.x=lf*2.6;}
+ chaser.visible=playing&&!!state&&state.chaser>0;if(chaser.visible){const close=state.chaser<4?.55:0;chaser.position.set(x*.72+.85,Math.abs(Math.sin(animTime*9))*.22,2.45-close);chaser.rotation.y=Math.sin(animTime*9)*.06;}
  const delta=playing?Math.max(0,dist-lastDistance):menu?dt*13:0;lastDistance=dist;if(playing||menu)runPhase+=delta*1.2;
  const stride=Math.sin(runPhase),air=y>.04,targetDuck=state?.slide>0?1:0;duck+=(targetDuck-duck)*(1-Math.exp(-dt*20));
  const targetLean=state?(state.lane*2.6-x)*-.12:0;lean+=(targetLean-lean)*(1-Math.exp(-dt*14));

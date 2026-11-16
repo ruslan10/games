@@ -1,0 +1,12 @@
+const {chromium}=require('playwright'),{serve}=require('./server.cjs');
+(async()=>{const {server,url}=await serve();const browser=await chromium.launch({executablePath:'/opt/google/chrome/chrome',headless:true,args:['--no-sandbox']});
+const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+p.on('pageerror',e=>console.log('PAGEERROR:',e.message));p.on('console',m=>{if(m.type()==='error')console.log('CONSOLE:',m.text());});
+await p.goto(url+'/runner/');await p.waitForFunction(()=>window.__runner);
+console.log('menu ok, mode=',await p.evaluate(()=>__runner.mode));
+await p.locator('#play').tap();await p.waitForTimeout(400);
+console.log('after play, mode=',await p.evaluate(()=>__runner.mode));
+console.log('run status=',await p.evaluate(()=>__runner.run&&__runner.run.status));
+await p.waitForTimeout(2000);
+console.log('later: mode=',await p.evaluate(()=>__runner.mode),'x=',await p.evaluate(()=>__runner.run&&Math.round(__runner.run.x)));
+await browser.close();server.close();})().catch(e=>{console.error(e.message);process.exit(1);});

@@ -2,7 +2,7 @@
 const {chromium}=require('playwright');const esbuild=require('esbuild');const fs=require('fs');const path=require('path');
 (async()=>{const code=esbuild.buildSync({entryPoints:[path.join(__dirname,'audio-entry.js')],bundle:true,write:false,format:'iife'}).outputFiles[0].text;
 const b=await chromium.launch({executablePath:'/opt/google/chrome/chrome',headless:true,args:['--no-sandbox']});const p=await b.newPage();await p.setContent('<html></html>');await p.addScriptTag({content:code});
-const names=['step','move','jump','slide','coin','power','break','warn','launch','dodge','boom','dead','won','click'];
+const names=['step','move','jump','slide','coin','power','break','warn','launch','dodge','boom','dead','won','click','combo','stumble','revive','ramp','fly'];
 const res=await p.evaluate(async(names)=>{const out={};const SR=44100;
  for(const n of names){const ctx=new OfflineAudioContext(1,SR*2,SR);ctx.resume=async()=>{};ctx.suspend=async()=>{};window.AudioContext=function(){return ctx;};const a=window.__createAudio(true);a.play(n);const buf=await ctx.startRendering();out[n]=Array.from(buf.getChannelData(0));}
  // muted: no nodes created

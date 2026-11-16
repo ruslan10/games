@@ -24,6 +24,11 @@ export function createAudio(initial){
   boom(){noise(.7,2200,60,.8,'lowpass',0,.7);tone(160,35,.6,'sawtooth',.2);tone(90,30,.7,'sine',.35);},
   dead(){tone(330,110,.5,'sawtooth',.12,.05);tone(247,82,.6,'triangle',.14,.2);},
   won(){[523,659,784,1047,1319].forEach((f,i)=>{tone(f,f,.28,'triangle',.16,i*.1);tone(f*2,f*2,.2,'sine',.05,i*.1);});},
+  combo(){tone(660,660,.08,'square',.09);tone(880,880,.08,'square',.09,.07);tone(1320,1320,.12,'sine',.1,.14);},
+  stumble(){noise(.3,400,120,.5,'lowpass');tone(220,90,.35,'sawtooth',.16);tone(150,70,.4,'triangle',.12,.1);},
+  revive(){[392,523,659,784,1047].forEach((f,i)=>{tone(f,f,.2,'triangle',.14,i*.08);});},
+  ramp(){noise(.4,500,2600,.3,'bandpass',0,1.2);tone(280,760,.35,'sine',.1);},
+  fly(){noise(.6,400,1800,.25,'bandpass',0,.8);tone(520,1040,.5,'sine',.09);},
   click(){tone(600,500,.06,'square',.2);}
  };
  return{

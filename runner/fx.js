@@ -13,7 +13,7 @@ export function createFx(scene){
  // particles
  const parts=[];for(let i=0;i<48;i++){const s=mk('#ffffff',0);s.visible=false;root.add(s);parts.push({s,vx:0,vy:0,vz:0,life:0,max:1,size:.3});}
  let pi=0;
- function burst(kind,x,y,z){const n=kind==='coin'?8:kind==='boom'?22:10;for(let i=0;i<n;i++){const p=parts[pi++%parts.length],a=Math.random()*6.283,sp=kind==='boom'?2+Math.random()*5:1+Math.random()*2.2;p.s.position.set(x,y,z);p.vx=Math.cos(a)*sp;p.vy=(kind==='boom'?1.5:.8)*Math.random()*sp+.5;p.vz=Math.sin(a)*sp*.6;p.life=p.max=kind==='boom'?.7+Math.random()*.4:.45;p.size=kind==='boom'?.9+Math.random()*.7:.28;p.s.material.color.set(kind==='coin'?'#ffe066':Math.random()<.5?'#ff8a1f':'#ffd34d');p.s.visible=true;}}
+ function burst(kind,x,y,z){const n=kind==='coin'?8:kind==='boom'?22:kind==='jet'?2:10;for(let i=0;i<n;i++){const p=parts[pi++%parts.length],a=Math.random()*6.283,sp=kind==='boom'?2+Math.random()*5:1+Math.random()*2.2;p.s.position.set(x,y,z);p.vx=Math.cos(a)*sp;p.vy=(kind==='boom'?1.5:.8)*Math.random()*sp+.5;p.vz=Math.sin(a)*sp*.6;p.life=p.max=kind==='boom'?.7+Math.random()*.4:.45;p.size=kind==='boom'?.9+Math.random()*.7:.28;p.s.material.color.set(kind==='coin'?'#ffe066':kind==='jet'?(Math.random()<.5?'#ffb14d':'#ff7a2a'):Math.random()<.5?'#ff8a1f':'#ffd34d');p.s.visible=true;}}
  let clock=0;
  function update(dt,view,fireballs,playing){
   if(playing)clock+=dt;

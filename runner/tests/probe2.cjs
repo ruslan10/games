@@ -1,0 +1,11 @@
+const {chromium}=require('playwright'),{serve}=require('./server.cjs');
+(async()=>{const {server,url}=await serve();const browser=await chromium.launch({executablePath:'/opt/google/chrome/chrome',headless:true,args:['--no-sandbox']});
+const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+p.on('pageerror',e=>console.log('PAGEERROR:',e.message));
+await p.goto(url+'/runner/');await p.waitForFunction(()=>window.__runner);
+await p.evaluate(()=>{const orig=Event.prototype;window.__pauses=[];});
+await p.locator('#play').tap();await p.waitForTimeout(600);
+console.log('mode=',await p.evaluate(()=>__runner.mode));
+console.log('panel text=',await p.evaluate(()=>document.getElementById('panel').textContent.slice(0,200)));
+console.log('overlay hidden=',await p.evaluate(()=>document.getElementById('overlay').hidden));
+await browser.close();server.close();})().catch(e=>{console.error(e.message);process.exit(1);});
