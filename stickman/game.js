@@ -140,11 +140,16 @@ const store = {
   pts(i) { return +(localStorage.getItem('sh_pts_' + i) || 0); },              // best fruit points per level
   setPts(i, n) { localStorage.setItem('sh_pts_' + i, n); },
   totalPts() { let t = 0; for (let i = 0; i < LEVELS.length; i++) t += this.pts(i); return t; },
+  get spent() { return +(localStorage.getItem('sh_spent') || 0); },           // points spent buying characters
+  set spent(v) { localStorage.setItem('sh_spent', Math.max(0, Math.round(v))); },
+  balance() { return Math.max(0, this.totalPts() - this.spent); },            // spendable points
 };
 
-/* ---------- unlockable hero skins (poki weekly-skins spirit) ----------
-   Unlocks come from total fruit points now; `at` (level) and `oldStars`
-   stay as grandfather rules so existing players never lose a skin. */
+/* ---------- hero skins: every character is a purchase ----------
+   Points are money. Picking a character costs its price, the price leaves the
+   balance immediately, and switching again means paying again - so a new
+   character always has to be earned. Only the currently equipped character is
+   "owned"; there is no free switching between previously bought characters. */
 const ABILITIES = {
   hog:     'מגנט: מושך פירות מרחוק',
   rabbit:  'קופץ גבוה מהקרקע',
@@ -164,49 +169,25 @@ const SKINS = [
   { name: 'נינג׳ה', pts: 6500, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
   { name: 'חתול',   pts: 10500, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
   { name: 'ציפור',  pts: 13500, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
-  /* character skins (original art, palette-evoked), unlocked by total points */
-  { name: 'גיבור על', pts: 2500, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
-  { name: 'שותף חלל', pts: 9000, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'שועל', pts: 16000, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
-  { name: 'איכידנה', pts: 19000, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
+  /* character skins (original art, palette-evoked) */
+  { name: 'גיבור על', pts: 2500, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
+  { name: 'שותף חלל', pts: 9000, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'שועל', pts: 16000, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
+  { name: 'איכידנה', pts: 19000, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
 ];
-/* Point goals are paced against real earning: a level is worth roughly
+/* Prices are paced against real earning: a level is worth roughly
    230-400 pts on a casual run and 400-1000 on a good run (fruits x combos +
-   finish/all-fruit bonuses), so the goals below land near their `at` levels
-   for steady players and a little earlier for fruit hunters. Anyone who had a
-   skin under the old goals keeps it: one-time migrations mark those, and every
-   unlock is remembered permanently once earned. */
-const OLD_SKIN_PTS = [0, 30, 80, 150, 250, 400, 120, 300, 550, 800];
-const OLD_SKIN_PTS2 = [0, 150, 400, 750, 1250, 2000, 600, 1500, 2750, 4000];
-(function migrateSkins() {
-  const tot = store.totalPts();
-  if (!localStorage.getItem('sh_mig_rewards2')) {
-    SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS[i]) localStorage.setItem('sh_unl_' + i, '1'); });
-    localStorage.setItem('sh_mig_rewards2', '1');
-  }
-  if (!localStorage.getItem('sh_mig_rewards3')) {
-    SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS2[i]) localStorage.setItem('sh_unl_' + i, '1'); });
-    localStorage.setItem('sh_mig_rewards3', '1');
-  }
-})();
-function skinUnlocked(i) {
-  const sk = SKINS[i];
-  if (localStorage.getItem('sh_unl_' + i)) return true;
-  let ok = store.totalPts() >= (sk.pts || 0);
-  if (!ok && sk.at && store.level >= sk.at) ok = true;
-  if (!ok && sk.oldStars && store.totalStars() >= sk.oldStars) ok = true;
-  if (ok) localStorage.setItem('sh_unl_' + i, '1');
-  return ok;
-}
+   finish/all-fruit bonuses), so the prices above land near their `at` levels
+   for steady players and a little earlier for fruit hunters. */
 function nextSkinGoal() {
   let best = null;
   for (let i = 0; i < SKINS.length; i++) {
-    if (!skinUnlocked(i) && SKINS[i].pts !== undefined && (!best || SKINS[i].pts < best.pts)) best = SKINS[i];
+    if (i !== store.skin && SKINS[i].pts !== undefined && (!best || SKINS[i].pts < best.pts)) best = SKINS[i];
   }
   return best;
 }
 function applySkin() {
-  const i = skinUnlocked(store.skin) ? store.skin : 0;
+  const i = store.skin >= 0 && store.skin < SKINS.length ? store.skin : 0;
   V.configure({ colors: SKINS[i].c });
   game.body = SKINS[i].body || 'hog';
   game.playerColors = V.getConfig().colors; // live palette: boot world colors + skin coat
@@ -225,13 +206,22 @@ function drawAvatar(cv, sk) {
     colors: Object.assign({}, COLORS, sk.c), body: sk.body || 'hog',
   });
 }
+function showToast(txt) {
+  ui.skinToast.textContent = txt;
+  ui.skinToast.classList.add('show');
+  clearTimeout(game.toastTimer);
+  game.toastTimer = setTimeout(() => ui.skinToast.classList.remove('show'), 3400);
+}
 function renderCharGrid() {
-  if (ui.charTotal) ui.charTotal.textContent = 'הניקוד המצטבר שלך: ' + store.totalPts() + ' נק׳';
+  const bal = store.balance();
+  if (ui.charTotal) ui.charTotal.textContent = 'הניקוד שלך: ' + bal + ' נק׳';
   ui.charGrid.innerHTML = '';
   SKINS.forEach((sk, i) => {
-    const unlocked = skinUnlocked(i);
+    const current = i === store.skin;
+    const price = sk.pts || 0;
+    const affordable = !current && bal >= price;
     const b = document.createElement('button');
-    b.className = 'char-card' + (i === store.skin && unlocked ? ' sel' : '') + (unlocked ? '' : ' locked');
+    b.className = 'char-card' + (current ? ' sel' : affordable ? ' buy' : ' locked');
     const cv = document.createElement('canvas');
     b.appendChild(cv);
     drawAvatar(cv, sk);
@@ -243,24 +233,25 @@ function renderCharGrid() {
     ab.className = 'char-ability';
     ab.textContent = ABILITIES[sk.body || 'hog'];
     b.appendChild(ab);
-    if (!unlocked) {
+    if (!current) {
       const req = document.createElement('div');
       req.className = 'char-req';
-      if (sk.pts) {
-        req.textContent = sk.pts + ' נק׳';
-        const left = document.createElement('span');
-        left.className = 'char-left';
-        left.textContent = 'חסרו ' + Math.max(0, sk.pts - store.totalPts());
-        req.appendChild(left);
-      } else {
-        req.textContent = 'שלב ' + sk.at;
-      }
+      req.textContent = price > 0 ? price + ' נק׳' : 'חינם';
+      const left = document.createElement('span');
+      left.className = 'char-left';
+      left.textContent = affordable ? (price > 0 ? 'לחצו לקנייה!' : 'לחצו לבחירה') : 'חסרות ' + Math.max(0, price - bal);
+      req.appendChild(left);
       b.appendChild(req);
     }
-    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (unlocked ? '' : ' (נפתח ב-' + (sk.pts || 0) + ' נקודות' + (sk.at > 1 ? ' או משלב ' + sk.at : '') + ')');
+    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (current ? '' : price > 0 ? ' (לרכישה ב-' + price + ' נקודות)' : ' (חינם)');
     b.addEventListener('click', () => {
-      if (!skinUnlocked(i)) return;
-      store.skin = i; applySkin(); renderCharGrid(); sfx.click();
+      if (i === store.skin) return;
+      // every switch is a purchase: the price leaves the balance at once, and
+      // the previous character has to be earned again to switch back
+      if (store.balance() < price) return;
+      store.spent = store.spent + price;
+      store.skin = i; applySkin(); renderCharGrid();
+      if (price > 0) { sfx.star(); showToast('🎉 קנית את ' + sk.name + '!'); } else sfx.click();
     });
     ui.charGrid.appendChild(b);
   });
@@ -389,19 +380,8 @@ function setState(s) {
   ui.btnIntroLevels.style.display = (s === 'intro') ? 'flex' : 'none';
   ui.btnIntroChars.style.display = (s === 'intro') ? 'flex' : 'none';
   if (s === 'menu') {
-    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ' + store.totalPts() + ' נקודות  •  ⭐ ' + Math.floor(store.totalPts() / 100);
+    ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ' + store.balance() + ' נקודות  •  ⭐ ' + Math.floor(store.totalPts() / 100);
     renderCharGrid();
-    // celebrate the first newly-unlocked skin not yet announced
-    for (let i = 1; i < SKINS.length; i++) {
-      if (skinUnlocked(i) && !localStorage.getItem('sh_seen_skin_' + i)) {
-        localStorage.setItem('sh_seen_skin_' + i, '1');
-        ui.skinToast.textContent = '🎉 סקין חדש נפתח: ' + SKINS[i].name + '!';
-        ui.skinToast.classList.add('show');
-        clearTimeout(game.toastTimer);
-        game.toastTimer = setTimeout(() => ui.skinToast.classList.remove('show'), 3400);
-        break;
-      }
-    }
   }
   if (s === 'intro') {
     ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1);
@@ -429,13 +409,14 @@ function setState(s) {
     }
     ui.btnNext.textContent = last ? 'שחקו שוב' : 'השלב הבא';
     const tot = store.totalPts();
+    const bal = store.balance();
     const goal = nextSkinGoal();
-    ui.clearPct.textContent = 'סה"כ: ' + tot + ' נקודות  •  ⭐ ' + Math.floor(tot / 100);
+    ui.clearPct.textContent = 'הניקוד שלך: ' + bal + ' נק׳  •  סה"כ צברת: ' + tot;
     ui.clearTime.textContent = (game.lastTime
       ? 'זמן: ' + game.lastTime + 'שנ' + (game.newBest ? ' 🏆 שיא זמן!' : (store.best(game.levelIndex) ? ' | שיא: ' + store.best(game.levelIndex) + 'שנ' : ''))
       : '')
-      + (goal ? '\nהיעד הבא: ' + goal.name + ' ב-' + goal.pts + ' נק׳ (חסרו ' + Math.max(0, goal.pts - tot) + ')' : '\nכל הדמויות נפתחו! 🎉');
-    const fillTo = goal ? Math.max(4, Math.min(100, 100 * tot / goal.pts)) : 100;
+      + (goal ? '\nהדמות הבאה: ' + goal.name + ' ב-' + goal.pts + ' נק׳ (חסרות ' + Math.max(0, goal.pts - bal) + ')' : '\nכל הדמויות נרכשו! 🎉');
+    const fillTo = goal ? Math.max(4, Math.min(100, 100 * bal / goal.pts)) : 100;
     requestAnimationFrame(() => { ui.clearFill.style.width = fillTo + '%'; });
   }
 }
@@ -1026,7 +1007,7 @@ function drawHUD() {
   ctx.fillText(String(game.runPts), sx - 20, sy + 1);
   ctx.font = '700 11px Heebo, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,.75)';
-  ctx.fillText('סה"כ ' + store.totalPts(), sx + 12, sy + 20);
+  ctx.fillText('מאזן ' + store.balance(), sx + 12, sy + 20);
   if (game.combo >= 3) { ctx.fillStyle = game.combo >= 14 ? '#ff9a8a' : '#ffe08a'; ctx.font = '900 13px Heebo, sans-serif'; ctx.fillText('שרשרת ' + game.combo + (game.combo >= 6 ? ' • x' + (game.combo >= 14 ? 3 : 2) : ''), sx + 12, sy + 36); }
   ctx.restore();
 }
@@ -1088,7 +1069,9 @@ function frame(ts) {
     for (const pop of game.pops) pop.t += dt * tScale;
     game.pops = game.pops.filter(pop => pop.t < 0.9);
     if (game.state === 'play') {
-      const magnet = game.body === 'hog' ? 115 : 54;
+      /* fruit pickup: pass right over a fruit to collect it (a little slack,
+         no pixel precision); the hedgehog's magnet still reaches farther */
+      const magnet = game.body === 'hog' ? 70 : 34;
       if (game.comboT > 0) { game.comboT -= dt; if (game.comboT <= 0) game.combo = 0; }
       for (const f of game.fruits) {
         if (f.taken) continue;
@@ -1224,11 +1207,12 @@ window.__game = {
   get weatherCount() { return game.weather.length; },
   get fruits() { return game.fruits; },
   totalPts: () => store.totalPts(),
+  balance: () => store.balance(),
   totalStars: () => store.totalStars(),
   get taken() { return game.taken; },
   get bonusPts() { return game.bonusPts; },
   get combo() { return game.combo; },
-  skinUnlocked, store: () => store,
+  store: () => store,
   ptsOf: i => store.pts(i),
   get body() { return game.body; },
   setSkin: i => { store.skin = i; applySkin(); renderCharGrid(); },

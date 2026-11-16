@@ -24,3 +24,11 @@ the old stuck behavior instead of the fixed takeoff.
 The physics checks cover 93 upper plates, 10 character configurations, three
 landing positions and short/long presses, plus underside and balloon bounces.
 They are targeted regression checks, not an all-level completion sweep.
+
+Character economy checks (purchase per switch, balance display, remaining points):
+
+    node stickman/tests/qa-char-unlocks.cjs
+
+Fruit pickup radius checks (pass right over fruit; hog magnet reaches farther):
+
+    node stickman/tests/qa-fruit-radius.cjs
