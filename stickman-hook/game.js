@@ -630,7 +630,7 @@ function drawPads(L) {
       roundRect(-10, 0, len + 20, 40, 12); ctx.fill();
       ctx.strokeStyle = '#4a4180'; ctx.lineWidth = 5; ctx.lineCap = 'round';
       for (let x = 20; x < len - 10; x += 34) {
-        ctx.beginPath(); ctx.moveTo(x, 34); ctx.lineTo(x + 9, 20); ctx.lineTo(x, 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 9, 28); ctx.lineTo(x, 14); ctx.lineTo(x + 9, 28); ctx.stroke(); // tip points along the bounce normal (local -y)
       }
       ctx.fillStyle = '#ff4d5e';
       roundRect(-6, -20, len + 12, 20, 10); ctx.fill();
