@@ -332,6 +332,7 @@ function buildWorld() {
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
       boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640,
       nx: p.nx, ny: p.ny, restitution: p.restitution,
+      kind: p.kind === 'bump' ? 'bump' : undefined,
       standTopOffset: p.kind === 'trampCeil' ? 40 : undefined })),
   }, abil));
   const a = L.anchors.find(a => a.id === L.start.anchorId);
