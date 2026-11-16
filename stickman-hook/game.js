@@ -118,7 +118,7 @@ const ui = {
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
   clearTitle: $('clear-title'), clearTime: $('clear-time'),
   clearStars: $('clear-stars'), skinToast: $('skin-toast'),
-  charsel: $('charsel'), charGrid: $('char-grid'), btnChars: $('btn-chars'), btnCharsClose: $('btn-chars-close'),
+  charsel: $('charsel'), charGrid: $('char-grid'), charTotal: $('char-total'), btnChars: $('btn-chars'), btnCharsClose: $('btn-chars-close'),
 };
 
 /* ---------- persistent state ---------- */
@@ -159,26 +159,35 @@ const ABILITIES = {
 };
 const SKINS = [
   { name: 'קיפוד',  pts: 0,   at: 1,  body: 'hog',    c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
-  { name: 'ארנב',   pts: 150,  at: 5,  body: 'rabbit', c: { hogBlue: '#cfd9e6', hogBlueD: '#93a5bb', hogBlueL: '#f2f6fb' } },
-  { name: 'רובוט',  pts: 400,  at: 10, body: 'robot',  c: { hogBlue: '#9aa7b8', hogBlueD: '#5d6b80', hogBlueL: '#d3dce8' } },
-  { name: 'נינג׳ה', pts: 750, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
-  { name: 'חתול',   pts: 1250, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
-  { name: 'ציפור',  pts: 2000, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+  { name: 'ארנב',   pts: 1200,  at: 5,  body: 'rabbit', c: { hogBlue: '#cfd9e6', hogBlueD: '#93a5bb', hogBlueL: '#f2f6fb' } },
+  { name: 'רובוט',  pts: 4000,  at: 10, body: 'robot',  c: { hogBlue: '#9aa7b8', hogBlueD: '#5d6b80', hogBlueL: '#d3dce8' } },
+  { name: 'נינג׳ה', pts: 6500, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
+  { name: 'חתול',   pts: 10500, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
+  { name: 'ציפור',  pts: 13500, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
   /* character skins (original art, palette-evoked), unlocked by total points */
-  { name: 'גיבור על', pts: 600, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
-  { name: 'שותף חלל', pts: 1500, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'שועל', pts: 2750, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
-  { name: 'איכידנה', pts: 4000, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
+  { name: 'גיבור על', pts: 2500, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
+  { name: 'שותף חלל', pts: 9000, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'שועל', pts: 16000, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
+  { name: 'איכידנה', pts: 19000, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
 ];
-/* Rewards are ~4x denser now, so point goals were scaled up. Anyone who had a
-   skin under the old goals keeps it: one-time migration marks those, and every
+/* Point goals are paced against real earning: a level is worth roughly
+   230-400 pts on a casual run and 400-1000 on a good run (fruits x combos +
+   finish/all-fruit bonuses), so the goals below land near their `at` levels
+   for steady players and a little earlier for fruit hunters. Anyone who had a
+   skin under the old goals keeps it: one-time migrations mark those, and every
    unlock is remembered permanently once earned. */
 const OLD_SKIN_PTS = [0, 30, 80, 150, 250, 400, 120, 300, 550, 800];
+const OLD_SKIN_PTS2 = [0, 150, 400, 750, 1250, 2000, 600, 1500, 2750, 4000];
 (function migrateSkins() {
-  if (localStorage.getItem('sh_mig_rewards2')) return;
   const tot = store.totalPts();
-  SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS[i]) localStorage.setItem('sh_unl_' + i, '1'); });
-  localStorage.setItem('sh_mig_rewards2', '1');
+  if (!localStorage.getItem('sh_mig_rewards2')) {
+    SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS[i]) localStorage.setItem('sh_unl_' + i, '1'); });
+    localStorage.setItem('sh_mig_rewards2', '1');
+  }
+  if (!localStorage.getItem('sh_mig_rewards3')) {
+    SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS2[i]) localStorage.setItem('sh_unl_' + i, '1'); });
+    localStorage.setItem('sh_mig_rewards3', '1');
+  }
 })();
 function skinUnlocked(i) {
   const sk = SKINS[i];
@@ -190,10 +199,11 @@ function skinUnlocked(i) {
   return ok;
 }
 function nextSkinGoal() {
+  let best = null;
   for (let i = 0; i < SKINS.length; i++) {
-    if (!skinUnlocked(i) && SKINS[i].pts !== undefined) return SKINS[i];
+    if (!skinUnlocked(i) && SKINS[i].pts !== undefined && (!best || SKINS[i].pts < best.pts)) best = SKINS[i];
   }
-  return null;
+  return best;
 }
 function applySkin() {
   const i = skinUnlocked(store.skin) ? store.skin : 0;
@@ -216,6 +226,7 @@ function drawAvatar(cv, sk) {
   });
 }
 function renderCharGrid() {
+  if (ui.charTotal) ui.charTotal.textContent = 'הניקוד המצטבר שלך: ' + store.totalPts() + ' נק׳';
   ui.charGrid.innerHTML = '';
   SKINS.forEach((sk, i) => {
     const unlocked = skinUnlocked(i);
@@ -235,10 +246,18 @@ function renderCharGrid() {
     if (!unlocked) {
       const req = document.createElement('div');
       req.className = 'char-req';
-      req.textContent = sk.pts ? sk.pts + ' נק׳' : 'שלב ' + sk.at;
+      if (sk.pts) {
+        req.textContent = sk.pts + ' נק׳';
+        const left = document.createElement('span');
+        left.className = 'char-left';
+        left.textContent = 'חסרו ' + Math.max(0, sk.pts - store.totalPts());
+        req.appendChild(left);
+      } else {
+        req.textContent = 'שלב ' + sk.at;
+      }
       b.appendChild(req);
     }
-    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (unlocked ? '' : ' (נפתח ב-' + (sk.pts || 0) + ' נקודות)');
+    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (unlocked ? '' : ' (נפתח ב-' + (sk.pts || 0) + ' נקודות' + (sk.at > 1 ? ' או משלב ' + sk.at : '') + ')');
     b.addEventListener('click', () => {
       if (!skinUnlocked(i)) return;
       store.skin = i; applySkin(); renderCharGrid(); sfx.click();

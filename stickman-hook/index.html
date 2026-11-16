@@ -140,8 +140,10 @@
   .char-card canvas { width: 110px; height: 132px; }
   .char-name { color: #fff; font-weight: 900; font-size: 17px; text-shadow: 0 2px 0 rgba(0,0,0,.18); }
   .char-ability { color: rgba(255,255,255,.82); font-weight: 700; font-size: 11px; line-height: 1.25; margin-top: 2px; min-height: 28px; }
+  .char-total { color: #fff; font-weight: 900; font-size: 18px; margin: -6px 0 14px; text-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .char-left { display: block; font-size: 10px; font-weight: 800; color: #fff; margin-top: 1px; }
   .char-req { position: absolute; top: 8px; left: 8px; background: rgba(36,31,58,.75); color: #ffd94d;
-    font-weight: 900; font-size: 13px; padding: 3px 9px; border-radius: 999px; }
+    font-weight: 900; font-size: 13px; padding: 3px 9px; border-radius: 12px; text-align: center; line-height: 1.15; }
   @media (max-width: 820px) { #char-grid { grid-template-columns: repeat(3, 108px); gap: 10px; }
     .char-card canvas { width: 80px; height: 96px; } .char-name { font-size: 14px; } .char-ability { font-size: 10px; min-height: 25px; } }
   @media (max-width: 380px) { #char-grid { grid-template-columns: repeat(2, 108px); } }
@@ -203,6 +205,7 @@
 <div class="overlay" id="charsel">
   <button class="sel-x" id="btn-chars-x" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div class="levelsel-title">בחירת דמות</div>
+  <div class="char-total" id="char-total"></div>
   <div id="char-grid"></div>
   <button class="bigbtn small" id="btn-chars-close">סגירה</button>
 </div>
