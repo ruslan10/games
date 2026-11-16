@@ -114,7 +114,6 @@ const ui = {
   btnIntroLevels: $('btn-intro-levels'), btnIntroChars: $('btn-intro-chars'),
   btnRestart: $('btn-restart'), btnLevels: $('btn-levels'),
   btnLevelsClose: $('btn-levels-close'), btnPauseLevels: $('btn-pause-levels'),
-  btnPrevLv: $('btn-prev-lv'), btnNextLv: $('btn-next-lv'),
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
   introHint: $('intro-hint'), clearPct: $('clear-pct'), clearFill: $('clear-fill'),
   clearTitle: $('clear-title'), clearTime: $('clear-time'),
@@ -370,11 +369,9 @@ function setState(s) {
     }
   }
   if (s === 'intro') {
-    ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1) + ' / ' + LEVELS.length;
+    ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1);
     ui.introName.textContent = game.level.name || '';
     ui.introHint.textContent = game.level.hint || '';
-    ui.btnPrevLv.disabled = game.levelIndex <= 0;
-    ui.btnNextLv.disabled = game.levelIndex + 1 > store.level - 1 || game.levelIndex >= LEVELS.length - 1;
   }
   if (s === 'clear') {
     const last = game.levelIndex >= LEVELS.length - 1;
@@ -566,11 +563,6 @@ ui.btnIntroLevels.addEventListener('click', openLevelSel);
 ui.btnIntroChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
 ui.btnPauseLevels.addEventListener('click', openLevelSel);
 ui.btnLevelsClose.addEventListener('click', () => { ui.levelsel.classList.remove('show'); sfx.click(); });
-ui.btnPrevLv.addEventListener('click', () => { if (game.levelIndex > 0) { sfx.click(); startLevel(game.levelIndex - 1); } });
-ui.btnNextLv.addEventListener('click', () => {
-  if (game.levelIndex + 1 <= store.level - 1 && game.levelIndex < LEVELS.length - 1) { sfx.click(); startLevel(game.levelIndex + 1); }
-});
-
 /* ---------- pose selection ---------- */
 function pickPose(p, rope) {
   if (rope) return 'swing';
