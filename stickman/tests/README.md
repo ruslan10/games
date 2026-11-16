@@ -25,7 +25,7 @@ The physics checks cover 93 upper plates, 10 character configurations, three
 landing positions and short/long presses, plus underside and balloon bounces.
 They are targeted regression checks, not an all-level completion sweep.
 
-Character economy checks (purchase per switch, balance display, remaining points):
+Character economy checks (permanent ownership, one-time purchases, balance display, remaining points):
 
     node stickman/tests/qa-char-unlocks.cjs
 

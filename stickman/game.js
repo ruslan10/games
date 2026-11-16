@@ -145,11 +145,11 @@ const store = {
   balance() { return Math.max(0, this.totalPts() - this.spent); },            // spendable points
 };
 
-/* ---------- hero skins: every character is a purchase ----------
-   Points are money. Picking a character costs its price, the price leaves the
-   balance immediately, and switching again means paying again - so a new
-   character always has to be earned. Only the currently equipped character is
-   "owned"; there is no free switching between previously bought characters. */
+/* ---------- hero skins: buy once, keep forever ----------
+   Points buy new characters. Owned characters can be equipped for free.
+   Preserve recorded legacy unlocks and the equipped character; the previous
+   per-switch version saved no purchase history, so spending alone cannot
+   identify any other characters bought during that version. */
 const ABILITIES = {
   hog:     'מגנט: מושך פירות מרחוק',
   rabbit:  'קופץ גבוה מהקרקע',
@@ -179,10 +179,19 @@ const SKINS = [
    230-400 pts on a casual run and 400-1000 on a good run (fruits x combos +
    finish/all-fruit bonuses), so the prices above land near their `at` levels
    for steady players and a little earlier for fruit hunters. */
+function skinOwned(i) {
+  return i === 0 || localStorage.getItem('sh_unl_' + i) === '1';
+}
+(function preserveKnownOwnership() {
+  const i = store.skin;
+  if (Number.isInteger(i) && i >= 0 && i < SKINS.length) {
+    localStorage.setItem('sh_unl_' + i, '1');
+  }
+})();
 function nextSkinGoal() {
   let best = null;
   for (let i = 0; i < SKINS.length; i++) {
-    if (i !== store.skin && SKINS[i].pts !== undefined && (!best || SKINS[i].pts < best.pts)) best = SKINS[i];
+    if (!skinOwned(i) && SKINS[i].pts !== undefined && (!best || SKINS[i].pts < best.pts)) best = SKINS[i];
   }
   return best;
 }
@@ -218,10 +227,11 @@ function renderCharGrid() {
   ui.charGrid.innerHTML = '';
   SKINS.forEach((sk, i) => {
     const current = i === store.skin;
+    const owned = skinOwned(i);
     const price = sk.pts || 0;
-    const affordable = !current && bal >= price;
+    const affordable = !owned && bal >= price;
     const b = document.createElement('button');
-    b.className = 'char-card' + (current ? ' sel' : affordable ? ' buy' : ' locked');
+    b.className = 'char-card' + (current ? ' sel' : owned ? ' owned' : affordable ? ' buy' : ' locked');
     const cv = document.createElement('canvas');
     b.appendChild(cv);
     drawAvatar(cv, sk);
@@ -233,25 +243,27 @@ function renderCharGrid() {
     ab.className = 'char-ability';
     ab.textContent = ABILITIES[sk.body || 'hog'];
     b.appendChild(ab);
-    if (!current) {
+    {
       const req = document.createElement('div');
       req.className = 'char-req';
-      req.textContent = price > 0 ? price + ' נק׳' : 'חינם';
+      req.textContent = owned ? (current ? 'נבחרה ✓' : 'שלך ✓') : price + ' נק׳';
       const left = document.createElement('span');
       left.className = 'char-left';
-      left.textContent = affordable ? (price > 0 ? 'לחצו לקנייה!' : 'לחצו לבחירה') : 'חסרות ' + Math.max(0, price - bal);
+      left.textContent = owned ? (current ? '' : 'לחצו לבחירה') : affordable ? 'לחצו לקנייה!' : 'חסרות ' + Math.max(0, price - bal);
       req.appendChild(left);
       b.appendChild(req);
     }
-    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (current ? '' : price > 0 ? ' (לרכישה ב-' + price + ' נקודות)' : ' (חינם)');
+    b.title = sk.name + ' - ' + ABILITIES[sk.body || 'hog'] + (owned ? ' (שלך)' : ' (לרכישה ב-' + price + ' נקודות)');
     b.addEventListener('click', () => {
       if (i === store.skin) return;
-      // every switch is a purchase: the price leaves the balance at once, and
-      // the previous character has to be earned again to switch back
-      if (store.balance() < price) return;
-      store.spent = store.spent + price;
+      const buying = !skinOwned(i);
+      if (buying) {
+        if (store.balance() < price) return;
+        store.spent = store.spent + price;
+        localStorage.setItem('sh_unl_' + i, '1');
+      }
       store.skin = i; applySkin(); renderCharGrid();
-      if (price > 0) { sfx.star(); showToast('🎉 קנית את ' + sk.name + '!'); } else sfx.click();
+      if (buying) { sfx.star(); showToast('🎉 קנית את ' + sk.name + ' והיא שלך לתמיד!'); } else sfx.click();
     });
     ui.charGrid.appendChild(b);
   });
