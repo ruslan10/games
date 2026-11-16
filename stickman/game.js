@@ -1204,6 +1204,9 @@ loadLevel(store.level - 1);
 setState('menu');
 requestAnimationFrame(frame);
 
+// Only the main menu is disposable. Intro, pause and results stay untouched.
+window.GamesUpdate?.setSafeToReload(() => game.state === 'menu' && !ui.charsel.classList.contains('show'));
+
 /* ---------- QA hooks ---------- */
 window.__game = {
   get state() { return game.state; },

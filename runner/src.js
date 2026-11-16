@@ -61,3 +61,5 @@ function frame(ms){const elapsed=Math.max(0,(ms-lastTime)/1000||0),dt=Math.min(e
 // Read-only snapshots for repeatable QA. No state-writing or teleport hooks.
 Object.defineProperty(window,'__runner',{get:()=>({mode,store:JSON.parse(JSON.stringify(store)),run:run?{x:run.x,y:run.y,lane:run.lane,lateral:run.lateral,slide:run.slide,coins:run.coins,status:run.status,speed:run.level.speed,length:run.level.length,obs:run.level.obs.map(o=>({...o})),powers:run.level.powers.map(p=>({...p})),allCoins:run.level.coins.length}:null,render:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,dpr:world.stats.dpr,frames:world.stats.frames,frameMs:world.stats.frameMs.slice(-180),quality:world.stats.quality}})});
 menu();requestAnimationFrame(frame);
+
+window.GamesUpdate?.setSafeToReload(() => mode === 'menu' && !!document.getElementById('play'));

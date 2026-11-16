@@ -39,3 +39,22 @@
 ## תאימות לכתובת הקודמת
 
 `stickman-hook/index.html` מפנה לכתובת החדשה `stickman/`, בלי לשנות שמירות. מפתחות ה-localStorage נשארים ללא שינוי ובאותו origin.
+
+## Publishing updates without losing saves
+
+After any site/game edit, run `node scripts/release.mjs` and commit its HTML and
+`version.json` changes with the code. For Runner, first run `npm ci && npm run build`
+inside `runner/`. Validate with `node scripts/release.mjs --check`.
+
+The release tool fingerprints all deployed JS/CSS/card images and HTML, then stamps
+asset URLs. `update.js` checks the tiny manifest at most once a minute while the tab
+is visible, and on return/online. It refreshes only on the homepage or a game's main
+menu, never during a level, intro, pause, shop, level selector or results. No save
+keys, coins, ownership or localStorage are changed. Offline checks fail quietly;
+reloads are bounded to avoid CDN propagation loops. The first installation needs
+one ordinary refresh, not clearing site data. Do not add a service worker or clear
+storage/caches as an update workaround.
+
+Update QA: `node tests/updates.cjs` (Playwright from `runner/node_modules`) and
+`node tests/update-guards.cjs`. The browser test simulates publishing a new release
+while each game is open, and checks deferred refresh and byte-for-byte save retention.
