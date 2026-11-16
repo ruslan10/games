@@ -159,23 +159,35 @@ const ABILITIES = {
 };
 const SKINS = [
   { name: 'קיפוד',  pts: 0,   at: 1,  body: 'hog',    c: { hogBlue: '#2f9bf0', hogBlueD: '#1d6fd0', hogBlueL: '#8fd0ff' } },
-  { name: 'ארנב',   pts: 30,  at: 5,  body: 'rabbit', c: { hogBlue: '#cfd9e6', hogBlueD: '#93a5bb', hogBlueL: '#f2f6fb' } },
-  { name: 'רובוט',  pts: 80,  at: 10, body: 'robot',  c: { hogBlue: '#9aa7b8', hogBlueD: '#5d6b80', hogBlueL: '#d3dce8' } },
-  { name: 'נינג׳ה', pts: 150, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
-  { name: 'חתול',   pts: 250, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
-  { name: 'ציפור',  pts: 400, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
+  { name: 'ארנב',   pts: 150,  at: 5,  body: 'rabbit', c: { hogBlue: '#cfd9e6', hogBlueD: '#93a5bb', hogBlueL: '#f2f6fb' } },
+  { name: 'רובוט',  pts: 400,  at: 10, body: 'robot',  c: { hogBlue: '#9aa7b8', hogBlueD: '#5d6b80', hogBlueL: '#d3dce8' } },
+  { name: 'נינג׳ה', pts: 750, at: 15, body: 'ninja',  c: { hogBlue: '#4a3f6b', hogBlueD: '#2d2547', hogBlueL: '#7a6aa8' } },
+  { name: 'חתול',   pts: 1250, at: 20, body: 'cat',    c: { hogBlue: '#f2b830', hogBlueD: '#cf9212', hogBlueL: '#ffe08a' } },
+  { name: 'ציפור',  pts: 2000, at: 25, body: 'bird',   c: { hogBlue: '#ff6ec7', hogBlueD: '#d14fa4', hogBlueL: '#ffc2e8' } },
   /* character skins (original art, palette-evoked), unlocked by total points */
-  { name: 'גיבור על', pts: 120, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
-  { name: 'שותף חלל', pts: 300, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
-  { name: 'שועל', pts: 550, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
-  { name: 'איכידנה', pts: 800, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
+  { name: 'גיבור על', pts: 600, oldStars: 10, body: 'super', c: { hogBlue: '#2456c8', hogBlueD: '#17389c', hogBlueL: '#6f9bf7' } },
+  { name: 'שותף חלל', pts: 1500, oldStars: 25, body: 'bean', c: { hogBlue: '#ff5a4e', hogBlueD: '#cf352b', hogBlueL: '#ffab9d' } },
+  { name: 'שועל', pts: 2750, oldStars: 45, body: 'fox', c: { hogBlue: '#ff9a2e', hogBlueD: '#d97308', hogBlueL: '#ffcf8a' } },
+  { name: 'איכידנה', pts: 4000, oldStars: 65, body: 'echidna', c: { hogBlue: '#e0303a', hogBlueD: '#a81822', hogBlueL: '#ff7a72' } },
 ];
+/* Rewards are ~4x denser now, so point goals were scaled up. Anyone who had a
+   skin under the old goals keeps it: one-time migration marks those, and every
+   unlock is remembered permanently once earned. */
+const OLD_SKIN_PTS = [0, 30, 80, 150, 250, 400, 120, 300, 550, 800];
+(function migrateSkins() {
+  if (localStorage.getItem('sh_mig_rewards2')) return;
+  const tot = store.totalPts();
+  SKINS.forEach((sk, i) => { if (tot >= OLD_SKIN_PTS[i]) localStorage.setItem('sh_unl_' + i, '1'); });
+  localStorage.setItem('sh_mig_rewards2', '1');
+})();
 function skinUnlocked(i) {
   const sk = SKINS[i];
-  if (store.totalPts() >= (sk.pts || 0)) return true;
-  if (sk.at && store.level >= sk.at) return true;
-  if (sk.oldStars && store.totalStars() >= sk.oldStars) return true;
-  return false;
+  if (localStorage.getItem('sh_unl_' + i)) return true;
+  let ok = store.totalPts() >= (sk.pts || 0);
+  if (!ok && sk.at && store.level >= sk.at) ok = true;
+  if (!ok && sk.oldStars && store.totalStars() >= sk.oldStars) ok = true;
+  if (ok) localStorage.setItem('sh_unl_' + i, '1');
+  return ok;
 }
 function nextSkinGoal() {
   for (let i = 0; i < SKINS.length; i++) {
@@ -290,6 +302,7 @@ const game = {
   playTime: 0,
   fruits: [],
   runPts: 0,
+  combo: 0, comboT: 0, taken: 0, bonusPts: 0,
   pops: [],
   theme: THEMES[0],
   themeColors: COLORS,
@@ -328,7 +341,7 @@ function buildWorld() {
   game.levelStartX = a.x - 100;
   game.particles.clear();
   game.fruits = (L.fruits || []).map(f => ({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false }));
-  game.runPts = 0;
+  game.runPts = 0; game.combo = 0; game.comboT = 0; game.taken = 0; game.bonusPts = 0;
   game.pops = [];
   game.rings.length = 0; game.zoom = 1; game.celebration = null;
   game.catRescued = false;
@@ -381,6 +394,11 @@ function setState(s) {
     const pt = document.createElement('span');
     pt.className = 'clear-star on';
     pt.textContent = '+' + game.runPts + ' נקודות';
+    const det = document.createElement('div');
+    det.className = 'clear-newbest';
+    det.style.fontSize = '14px';
+    det.textContent = 'פירות: ' + game.taken + '/' + game.fruits.length + ' פירות  •  בונוס סיום +' + game.bonusPts;
+    ui.clearStars.appendChild(det);
     ui.clearStars.appendChild(pt);
     if (game.newPtsBest && game.runPts > 0) {
       const nb = document.createElement('div');
@@ -427,6 +445,9 @@ function win() {
   game.newBest = !prevBest || t < prevBest;
   if (game.newBest) store.setBest(game.levelIndex, Math.round(t * 10) / 10);
   game.lastTime = Math.round(t * 10) / 10;
+  // level bonuses: finishing, plus a big one for collecting every fruit
+  game.bonusPts = 25 + (game.taken >= game.fruits.length && game.fruits.length ? 100 : 0);
+  game.runPts += game.bonusPts;
   game.newPtsBest = game.runPts > store.pts(game.levelIndex);
   if (game.newPtsBest) store.setPts(game.levelIndex, game.runPts);
   if (game.levelIndex >= LEVELS.length - 1) store.done = true;
@@ -880,7 +901,7 @@ function drawPops() {
     const big = p2.big ? 2.2 : 1;
     const popScale = big * (p2.t < 0.16 ? 0.4 + 2.6 * (p2.t / 0.16) : p2.t < 0.3 ? 1.8 - 0.8 * ((p2.t - 0.16) / 0.14) : 1);
     ctx.font = '900 ' + Math.round(20 * popScale) + 'px Heebo, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'ltr';
     ctx.lineWidth = 4 * big; ctx.strokeStyle = 'rgba(36,31,58,.85)';
     const yy = p2.y - 24 - p2.t * 46;
     ctx.strokeText(p2.txt, p2.x, yy);
@@ -981,6 +1002,7 @@ function drawHUD() {
   ctx.font = '700 11px Heebo, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,.75)';
   ctx.fillText('סה"כ ' + store.totalPts(), sx + 12, sy + 20);
+  if (game.combo >= 3) { ctx.fillStyle = game.combo >= 14 ? '#ff9a8a' : '#ffe08a'; ctx.font = '900 13px Heebo, sans-serif'; ctx.fillText('שרשרת ' + game.combo + (game.combo >= 6 ? ' • x' + (game.combo >= 14 ? 3 : 2) : ''), sx + 12, sy + 36); }
   ctx.restore();
 }
 
@@ -1041,13 +1063,18 @@ function frame(ts) {
     for (const pop of game.pops) pop.t += dt * tScale;
     game.pops = game.pops.filter(pop => pop.t < 0.9);
     if (game.state === 'play') {
-      const magnet = game.body === 'hog' ? 115 : 46;
+      const magnet = game.body === 'hog' ? 115 : 54;
+      if (game.comboT > 0) { game.comboT -= dt; if (game.comboT <= 0) game.combo = 0; }
       for (const f of game.fruits) {
         if (f.taken) continue;
         if (Math.hypot(f.x - p.x, f.y - p.y) < magnet) {
           f.taken = true;
-          game.runPts += f.v;
-          game.pops.push({ x: f.x, y: f.y, t: 0, txt: '+' + f.v, col: f.v >= 20 ? '#ff8a8a' : f.v >= 10 ? '#a5f5a9' : '#ffe08a' });
+          // chain: fruits picked up within 1.6s of each other build a multiplier (x2 from 6, x3 from 14)
+          game.combo++; game.comboT = 1.6; game.taken++;
+          const mult = game.combo >= 14 ? 3 : game.combo >= 6 ? 2 : 1;
+          const gain = f.v * mult;
+          game.runPts += gain;
+          game.pops.push({ x: f.x, y: f.y, t: 0, txt: '+' + gain + (mult > 1 ? ' x' + mult : ''), col: f.v >= 20 ? '#ff8a8a' : f.v >= 10 ? '#a5f5a9' : '#ffe08a' });
           game.particles.confetti(f.x, f.y, { count: f.v >= 10 ? 24 : 14, spread: 90 });
           game.shake = Math.max(game.shake, f.v >= 20 ? 4 : 2);
           sfx.star();
@@ -1173,6 +1200,10 @@ window.__game = {
   get fruits() { return game.fruits; },
   totalPts: () => store.totalPts(),
   totalStars: () => store.totalStars(),
+  get taken() { return game.taken; },
+  get bonusPts() { return game.bonusPts; },
+  get combo() { return game.combo; },
+  skinUnlocked, store: () => store,
   ptsOf: i => store.pts(i),
   get body() { return game.body; },
   setSkin: i => { store.skin = i; applySkin(); renderCharGrid(); },
