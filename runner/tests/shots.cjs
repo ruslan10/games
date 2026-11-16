@@ -1,0 +1,15 @@
+const {chromium}=require('playwright'),{serve}=require('./server.cjs');
+(async()=>{const {server,url}=await serve();const browser=await chromium.launch({executablePath:'/opt/google/chrome/chrome',headless:true,args:['--no-sandbox']});
+const p=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto(url+'/runner/?autopause=0');await p.waitForFunction(()=>window.__runner);await p.waitForTimeout(2500);
+await p.screenshot({path:'/downloads/v2-menu.png'});
+await p.locator('#missions').tap();await p.waitForTimeout(300);await p.screenshot({path:'/downloads/v2-missions.png'});
+await p.locator('#back').tap();await p.locator('#upgrades').tap();await p.waitForTimeout(300);await p.screenshot({path:'/downloads/v2-upgrades.png'});
+await p.locator('#back').tap();await p.locator('#daily').tap();await p.waitForTimeout(300);await p.screenshot({path:'/downloads/v2-daily.png'});
+await p.locator('#back').tap();await p.locator('#characters').tap();await p.waitForTimeout(300);await p.screenshot({path:'/downloads/v2-chars.png'});
+await p.locator('#close').tap();
+await p.evaluate(()=>{document.getElementById('play').click();});await p.waitForTimeout(4000);
+await p.screenshot({path:'/downloads/v2-play.png'});
+console.log('mode',await p.evaluate(()=>__runner.mode),'x',await p.evaluate(()=>__runner.run&&Math.round(__runner.run.x)),'errors',JSON.stringify(errs));
+await browser.close();server.close();})().catch(e=>{console.error(e.message);process.exit(1);});
