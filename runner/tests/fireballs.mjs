@@ -3,7 +3,7 @@ const {Run}=createRequire(import.meta.url)('../engine.js');
 let fails=0;const check=(c,m)=>{if(!c){fails++;console.error('FAIL',m);}};
 function sim(n,dt,bot){const r=new Run(n),f=createFireballs(r.level);let last=-9;
  for(let k=0;k<30000&&r.status==='playing';k++){
-  if(bot){const next=r.level.obs.filter(o=>o.x>r.x-2&&o.x-r.x<14);if(next.length){const fl=f.list.filter(b=>b.phase==='fly'&&(b.x-r.x)/(r.level.speed+FB.approach)<1.1).map(b=>b.lane);const ok=[-1,0,1].filter(l=>next.every(o=>o.lane!==l));const safe=ok.find(l=>!fl.includes(l)&&Math.abs(l-r.lane)<=1)??ok.find(l=>Math.abs(l-r.lane)<=1)??ok[0];r.move(Math.sign(safe-r.lane));}
+  if(bot){const next=r.level.obs.filter(o=>o.type!=='ramp'&&o.x>r.x-2&&o.x-r.x<14);if(next.length){const fl=f.list.filter(b=>b.phase==='fly'&&(b.x-r.x)/(r.level.speed+FB.approach)<1.1).map(b=>b.lane);const ok=[-1,0,1].filter(l=>next.every(o=>Math.abs((o.laneF??o.lane)-l)>=.45));const safe=ok.find(l=>!fl.includes(l)&&Math.abs(l-r.lane)<=1)??ok.find(l=>Math.abs(l-r.lane)<=1)??ok[0];if(safe!==undefined)r.move(Math.sign(safe-r.lane));}
    for(const b of f.list)if(b.phase==='fly'){const t=(b.x-r.x)/(r.level.speed+FB.approach);if((b.lane===r.lane||Math.abs(b.lane*2.6-r.lateral)<1.4)&&t<.36&&t>0&&r.y===0&&r.time-last>.8){r.jump();last=r.time;}}}
   r.step(dt);f.update(r,dt);r.drain();f.drain();}
  return {r,f};}

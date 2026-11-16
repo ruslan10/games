@@ -58,7 +58,7 @@ export const DAILY_MODS=[
  {id:'bare',name:'בלי מגן',desc:'לא מתחילים עם מגן',noStartShield:true},
  {id:'long',name:'מרתון',desc:'מסלול ארוך ב-20%',lengthMul:1.2}
 ];
-/** dateKey: 'YYYY-MM-DD' from the device's local date (use dateKey()). Same key => same challenge on every device. */
+/** dateKey: 'YYYY-MM-DD' at Asia/Jerusalem midnight (use dateKey()). Same key => same challenge on every device. */
 export function dailyInfo(key){const r=rngFrom(hashStr('daily'+key));const mod=DAILY_MODS[Math.floor(r()*DAILY_MODS.length)];const level=3+Math.floor(r()*15);const goal=[0.5,0.6,0.7][Math.floor(r()*3)];return{key,seed:hashStr('seed'+key),level,mod,goalRatio:goal,reward:80};}
 export const DAILY_TZ='Asia/Jerusalem';
 /** Daily rollover is explicit: midnight in DAILY_TZ for every device (not the device clock zone). */

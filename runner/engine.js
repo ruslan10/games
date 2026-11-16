@@ -1,27 +1,97 @@
-/* Original fixed-step three-lane runner simulation. No rendering or browser dependencies. */
+/* Original fixed-step three-lane runner simulation. No rendering or browser dependencies.
+   v2: combo multiplier, stumble/chaser, once-per-run revive, shoes/flight powers,
+   moving obstacles, slide tunnels, launch ramps, distinct character abilities,
+   upgrade effects (progression.mjs) and seeded daily-challenge modifiers. */
 (function(root){'use strict';
-const CHARS=[{id:'courier',name:'השליח',cost:0,color:'#29c9ba'},{id:'fox',name:'פוקסי השועל',cost:0,color:'#ef9750'},{id:'cat',name:'מוצ׳י החתול',cost:150,color:'#b2a1ed'},{id:'bunny',name:'בוני הארנב',cost:350,color:'#f8d7df'},{id:'panda',name:'פנדה',cost:650,color:'#edf2ef'}];
-function level(n){n=Math.max(1,Math.min(20,n));const speed=13+(n-1)*.43,length=360+(n-1)*22,obs=[],coins=[],powers=[];let id=0;const add=(x,lane,type)=>obs.push({id:id++,x,lane,type,w:type==='barrier'?1.6:1.55});
-for(let x=60,i=0;x<length-28;x+=Math.max(28,44-n*.55),i++){
- const lane=(i*2+n)%3-1;let type=['crate','barrier','arch'][i%3];if(n===1&&i===0)type='crate';add(x,lane,type);
- if(n>=4&&i%3===1)add(x,((lane+2)%3)-1,'crate');
- const rewardLane=i%2===0?lane:((lane+2)%3)-1;
- for(let j=0;j<7;j++)coins.push({x:x-10+j*2.7,lane:rewardLane,y:type==='arch'&&rewardLane===lane?.6:rewardLane===lane?1.1+Math.sin(j/6*Math.PI)*1.6:.75,taken:false});
- if(i%4===2)powers.push({x:x+13,lane:(i%3)-1,type:Math.floor(i/4)%2?'magnet':'shield',taken:false});
-}
-for(let j=0;j<7;j++)coins.push({x:17+j*3,lane:0,y:.8,taken:false});
-return {n,speed,length,obs,coins,powers,biome:Math.floor((n-1)/5)};}
-class Run{constructor(n){this.level=level(n);this.x=0;this.lane=0;this.lateral=0;this.y=0;this.vy=0;this.slide=0;this.coins=0;this.time=0;this.status='playing';this.shield=0;this.magnet=0;this.invincible=0;this.events=[];this.hits=0;this.distance=0;}
-move(dir){if(this.status==='playing')this.lane=Math.max(-1,Math.min(1,this.lane+dir));}
-jump(){if(this.status!=='playing'||this.y>.02||this.vy>0)return false;this.vy=8.6;this.slide=0;this.events.push({type:'jump'});return true;}
-duck(){if(this.status!=='playing')return;this.slide=1.35;if(this.y>0)this.vy=-12;this.events.push({type:'slide'});}
-step(dt){if(this.status!=='playing')return;dt=Math.min(dt,1/30);this.time+=dt;this.x+=this.level.speed*dt;this.lateral+=(this.lane*2.6-this.lateral)*Math.min(1,dt*17);this.vy-=24*dt;this.y=Math.max(0,this.y+this.vy*dt);if(this.y===0)this.vy=0;this.slide=Math.max(0,this.slide-dt);this.magnet=Math.max(0,this.magnet-dt);this.invincible=Math.max(0,this.invincible-dt);
-for(const c of this.level.coins){if(c.taken)continue;const near=Math.abs(c.x-this.x)<1.3&&Math.abs(c.lane*2.6-this.lateral)<1.05&&Math.abs(c.y-this.y-.7)<1.4;const magnet=this.magnet>0&&Math.abs(c.x-this.x)<8&&Math.abs(c.lane*2.6-this.lateral)<6;if(near||magnet){c.taken=true;this.coins++;this.events.push({type:'coin'});}}
-for(const p of this.level.powers){if(!p.taken&&Math.abs(p.x-this.x)<1.3&&Math.abs(p.lane*2.6-this.lateral)<1){p.taken=true;if(p.type==='shield')this.shield=1;else this.magnet=8;this.events.push({type:p.type});}}
-for(const o of this.level.obs){if(Math.abs(o.x-this.x)>1.1||Math.abs(o.lane*2.6-this.lateral)>1.0||this.invincible>0)continue;const clear=o.type==='arch'?this.slide>0&&this.y<.2:this.y>(o.type==='crate'?1.05:.75);// Once a grounded slide enters a gate, stay low until the whole gate is behind.
-if(clear&&o.type==='arch')this.slide=Math.max(this.slide,.12);
-if(!clear){if(this.shield){this.shield=0;this.invincible=1.4;this.hits++;this.events.push({type:'break'});}else{this.status='dead';this.events.push({type:'dead'});break;}}}
-if(this.status==='playing'&&this.x>=this.level.length){this.status='won';this.events.push({type:'won'});}}
-drain(){return this.events.splice(0);}}
-const api={Run,level,CHARS};if(typeof module!=='undefined')module.exports=api;root.RunnerEngine=api;
+const CHARS=[
+ {id:'courier',name:'השליח',cost:0,color:'#29c9ba',ability:'combo',abilityText:'קומבו נבנה מהר יותר (כל 6 איסופים נקיים)'},
+ {id:'fox',name:'פוקסי השועל',cost:0,color:'#ef9750',ability:'magnet',abilityText:'מגנט נמשך 4 שניות נוספות'},
+ {id:'cat',name:'מוצ׳י החתול',cost:150,color:'#b2a1ed',ability:'jump',abilityText:'קפיצה גבוהה יותר'},
+ {id:'bunny',name:'בוני הארנב',cost:350,color:'#f8d7df',ability:'double',abilityText:'קפיצה כפולה באוויר'},
+ {id:'panda',name:'פנדה',cost:650,color:'#edf2ef',ability:'shield',abilityText:'מתחיל כל ריצה עם מגן'}];
+const DEFAULT_UP={magnetSeconds:8,startShields:0,coinBonus:0,shoesSeconds:6,flightSeconds:4,reviveCost:60};
+const SLIDE_TYPES={arch:1,tunnel:1};
+function level(n,opts){n=Math.max(1,Math.min(20,Math.floor(n)||1));opts=opts||{};
+ const seed=(opts.seed|0)||0,sk=seed%3,sp=(seed>>2)%2;
+ const speed=(13+(n-1)*.43)*(opts.speedMul||1),length=Math.round((360+(n-1)*22)*(opts.lengthMul||1)),obs=[],coins=[],powers=[];let id=0;
+ const add=(x,lane,type,ex)=>obs.push(Object.assign({id:id++,x,lane,type,w:type==='barrier'?1.6:type==='tunnel'?7:1.55},ex));
+ for(let x=60,i=0;x<length-28;x+=Math.max(28,44-n*.55),i++){
+  const lane=(i*2+n+sk)%3-1;let type=['crate','barrier','arch'][(i+sk)%3];
+  if(n>=2&&(i+sk)%6===5)type='tunnel';
+  if(n>=3&&(i+sk)%5===3)type='mover';
+  if(n===1&&i===0)type='crate';
+  if(type==='mover'){const dir=(i+sk)%2?1:-1,other=Math.max(-1,Math.min(1,lane+dir));
+   add(x,lane,'mover',{mover:{a:lane,b:other,speed:.6+((i*7+sk)%3)*.15,phase:(((i*13+seed%97)%10)/10)*6.283}});}
+  else add(x,lane,type);
+  const second=((lane+2)%3)-1;
+  if(n>=4&&i%3===1){add(x,second,'crate');const free=-lane-second;add(x-11,free,'ramp',{w:1.2});
+   for(let j=0;j<6;j++)coins.push({x:x-15+j*2.2,lane:free,y:1.3+Math.sin(j/5*Math.PI)*1.9,taken:false});}
+  const rewardLane=(i+sp)%2===0?lane:second;
+  for(let j=0;j<7;j++)coins.push({x:x-10+j*2.7,lane:rewardLane,y:SLIDE_TYPES[type]&&rewardLane===lane?.6:rewardLane===lane?1.1+Math.sin(j/6*Math.PI)*1.6:.75,taken:false});
+  if(type==='tunnel')for(let j=0;j<3;j++)coins.push({x:x-2+j*2,lane,y:.55,taken:false});
+  if(i%3===1){const pool=['shield','magnet'];if(n>=2)pool.push('shoes');if(n>=3)pool.push('flight');const pt=pool[(Math.floor(i/3)+sk)%pool.length];
+   powers.push({x:x+13,lane:(i%3)-1,type:pt,taken:false});
+   if(pt==='flight')for(let j=0;j<14;j++)coins.push({x:x+21+j*2.6,lane:((Math.floor(j/5)+i)%3)-1,y:3.3+Math.sin(j*.9)*.5,taken:false});}
+ }
+ for(let j=0;j<7;j++)coins.push({x:17+j*3,lane:0,y:.8,taken:false});
+ return{n,speed,length,obs,coins,powers,biome:Math.floor((n-1)/5),seed};}
+class Run{
+ constructor(n,opts){opts=opts||{};this.level=level(n,opts);this.char=CHARS.find(c=>c.id===opts.character)||CHARS[0];
+  const up=this.up=Object.assign({},DEFAULT_UP,opts.upgrades);
+  this.jumpV=8.6+(this.char.ability==='jump'?1.2:0);this.comboNeed=this.char.ability==='combo'?6:8;
+  this.x=0;this.lane=0;this.lateral=0;this.y=0;this.vy=0;this.slide=0;this.coins=0;this.collected=0;this.time=0;this.status='playing';
+  this.shield=opts.noStartShield?0:Math.min(3,up.startShields+(this.char.ability==='shield'?1:0));
+  this.magnet=0;this.shoes=0;this.flight=0;this.invincible=0;this.chaser=0;
+  this.comboN=0;this.mult=1;this.maxMult=1;this.maxStreak=0;this.airJumps=this.char.ability==='double'?1:0;
+  this.revived=false;this.caught=false;this.coinMul=opts.coinMul||1;
+  this.events=[];this.hits=0;}
+ move(dir){if(!dir)return;if(this.status==='playing')this.lane=Math.max(-1,Math.min(1,this.lane+dir));}
+ jump(){if(this.status!=='playing'||this.flight>0)return false;
+  if(this.y<=.02&&this.vy<=0){this.vy=this.shoes>0?12.5+(this.char.ability==='jump'?.8:0):this.jumpV;this.slide=0;this.events.push({type:'jump'});return true;}
+  if(this.airJumps>0){this.airJumps--;this.vy=Math.max(this.vy,this.jumpV*.94);this.slide=0;this.events.push({type:'jump',air:true});return true;}
+  return false;}
+ duck(){if(this.status!=='playing')return;this.slide=1.35;if(this.y>0&&this.flight<=0)this.vy=-12;this.events.push({type:'slide'});}
+ _comboPoint(){this.comboN++;this.maxStreak=Math.max(this.maxStreak,this.comboN);const m=Math.min(3,1+Math.floor(this.comboN/this.comboNeed));if(m>this.mult){this.mult=m;this.maxMult=Math.max(this.maxMult,m);this.events.push({type:'combo',mult:m});}}
+ _comboReset(){if(this.mult>1)this.events.push({type:'combo-reset'});this.comboN=0;this.mult=1;}
+ /* One landed hit: shield breaks first, otherwise the chaser closes in (stumble);
+    a hit while the chaser is already on you ends the run (caught). */
+ hit(src){if(this.status!=='playing'||this.invincible>0)return false;
+  this.hits++;this._comboReset();
+  if(this.shield>0){this.shield--;this.invincible=1.4;this.events.push({type:'break'});return true;}
+  if(this.chaser<=0){this.chaser=12;this.invincible=1.4;this.events.push({type:'stumble'});return true;}
+  this.status='dead';this.caught=true;this.events.push({type:'caught'});this.events.push({type:'dead'});return true;}
+ /* Once per run, after death: back on the road with a short safety window. */
+ revive(){if(this.status!=='dead'||this.revived)return false;
+  this.revived=true;this.status='playing';this.invincible=2.5;this.chaser=0;this.y=0;this.vy=0;this.slide=0;this.caught=false;
+  this.events.push({type:'revive'});return true;}
+ step(dt){if(this.status!=='playing')return;dt=Math.min(dt,1/30);this.time+=dt;this.x+=this.level.speed*dt;
+  this.lateral+=(this.lane*2.6-this.lateral)*Math.min(1,dt*17);
+  if(this.flight>0){this.flight=Math.max(0,this.flight-dt);this.y+=(3.4-this.y)*Math.min(1,dt*5);this.vy=0;
+   if(this.flight===0){this.invincible=Math.max(this.invincible,.8);this.events.push({type:'flightend'});}}
+  else{this.vy-=24*dt;this.y=Math.max(0,this.y+this.vy*dt);if(this.y===0){this.vy=0;this.airJumps=this.char.ability==='double'?1:0;}}
+  this.slide=Math.max(0,this.slide-dt);this.magnet=Math.max(0,this.magnet-dt);this.shoes=Math.max(0,this.shoes-dt);
+  this.invincible=Math.max(0,this.invincible-dt);this.chaser=Math.max(0,this.chaser-dt);
+  for(const c of this.level.coins){if(c.taken)continue;
+   const near=Math.abs(c.x-this.x)<1.3&&Math.abs(c.lane*2.6-this.lateral)<1.05&&Math.abs(c.y-this.y-.7)<1.4;
+   const magnet=this.magnet>0&&Math.abs(c.x-this.x)<8&&Math.abs(c.lane*2.6-this.lateral)<6;
+   if(near||magnet){c.taken=true;this.collected++;this.coins+=this.mult*this.coinMul;this._comboPoint();this.events.push({type:'coin'});}}
+  for(const p of this.level.powers){if(!p.taken&&Math.abs(p.x-this.x)<1.3&&Math.abs(p.lane*2.6-this.lateral)<1){p.taken=true;
+   if(p.type==='shield')this.shield=Math.min(3,this.shield+1);
+   else if(p.type==='magnet')this.magnet=this.up.magnetSeconds+(this.char.ability==='magnet'?4:0);
+   else if(p.type==='shoes')this.shoes=this.up.shoesSeconds;
+   else if(p.type==='flight')this.flight=this.up.flightSeconds;
+   this.events.push({type:p.type});}}
+  for(const o of this.level.obs){
+   if(o.type==='mover'){const mv=o.mover,mid=(mv.a+mv.b)/2,amp=Math.abs(mv.a-mv.b)/2;o.laneF=mid+amp*Math.sin(this.time*mv.speed+mv.phase);}
+   if(!o.passed&&o.x<this.x-2){o.passed=true;if(o.type!=='ramp'){this._comboPoint();if(o.type==='mover')this.events.push({type:'moving-pass'});}}
+   if(o.type==='ramp'){if(Math.abs(o.x-this.x)<1.3&&Math.abs(o.lane*2.6-this.lateral)<1.0&&this.y<.1&&this.flight<=0){this.vy=11.5;this.slide=0;this.events.push({type:'ramp'});}continue;}
+   const lanePos=(o.type==='mover'?o.laneF:o.lane)*2.6,hw=o.type==='tunnel'?3.6:1.1;
+   if(Math.abs(o.x-this.x)>hw||Math.abs(lanePos-this.lateral)>1.0||this.invincible>0||this.flight>0||this.y>2.9)continue;
+   const slideType=!!SLIDE_TYPES[o.type];
+   const clear=slideType?this.slide>0&&this.y<.2:this.y>(o.type==='barrier'?.75:1.05);
+   if(clear&&slideType)this.slide=Math.max(this.slide,.12);// Once a grounded slide enters a gate, stay low until the whole gate is behind.
+   if(!clear){this.hit('obs');if(this.status!=='playing')break;}}
+  if(this.status==='playing'&&this.x>=this.level.length){this.status='won';this.events.push({type:'won'});}}
+ drain(){return this.events.splice(0);}}
+const api={Run,level,CHARS,DEFAULT_UP};if(typeof module!=='undefined')module.exports=api;root.RunnerEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
