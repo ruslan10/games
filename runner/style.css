@@ -12,10 +12,10 @@
 
 #combo{position:absolute;top:64px;inset-inline-start:14px;font-weight:800;font-size:20px;color:#fff;background:linear-gradient(135deg,#ff9a3d,#ff5e62);padding:4px 12px;border-radius:999px;box-shadow:0 3px 10px #ff5e6244;pointer-events:none}
 #combo:empty{display:none}
-#chaserwarn{position:absolute;top:104px;inset-inline-start:14px;font-weight:700;font-size:14px;color:#fff;background:#d1382b;padding:4px 12px;border-radius:999px;animation:chpulse .5s infinite alternate;pointer-events:none}
+#chaserwarn{position:absolute;top:142px;inset-inline-start:14px;font-weight:700;font-size:14px;color:#fff;background:#d1382b;padding:4px 12px;border-radius:999px;animation:chpulse .5s infinite alternate;pointer-events:none}
 @keyframes chpulse{from{transform:scale(1)}to{transform:scale(1.07)}}
 .missions{display:flex;flex-direction:column;gap:10px;margin:12px 0}
-.mcard{background:#ffffffd9;border-radius:16px;padding:12px 14px;box-shadow:0 2px 8px #3b4a5a14;display:flex;flex-direction:column;gap:8px}
+.mcard{background:#ffffffd9;border-radius:16px;padding:12px 14px;box-shadow:0 2px 8px #3b4a5a14;display:flex;flex-direction:column;gap:8px;color:#272943}.mcard b{color:#1d1f36}
 .mcard.mdone{outline:2px solid #69c576}
 .mbar{height:8px;background:#e4e9ee;border-radius:99px;overflow:hidden}
 .mfill{height:100%;background:linear-gradient(90deg,#31c6b8,#5fd66f);border-radius:99px}
