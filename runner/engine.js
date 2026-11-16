@@ -31,7 +31,7 @@ function level(n,opts){n=Math.max(1,Math.min(20,Math.floor(n)||1));opts=opts||{}
   if(type==='tunnel')for(let j=0;j<3;j++)coins.push({x:x-2+j*2,lane,y:.55,taken:false});
   if(i%3===1){const pool=['shield','magnet'];if(n>=2)pool.push('shoes');if(n>=3)pool.push('flight');const pt=pool[(Math.floor(i/3)+sk)%pool.length];
    powers.push({x:x+13,lane:(i%3)-1,type:pt,taken:false});
-   if(pt==='flight')for(let j=0;j<14;j++)coins.push({x:x+21+j*2.6,lane:((Math.floor(j/5)+i)%3)-1,y:3.3+Math.sin(j*.9)*.5,taken:false});}
+   if(pt==='flight')for(let j=0;j<14;j++)coins.push({x:x+21+j*2.6,lane:((Math.floor(j/5)+i)%3)-1,y:3.3+Math.sin(j*.9)*.5,taken:false,air:true});}
  }
  for(let j=0;j<7;j++)coins.push({x:17+j*3,lane:0,y:.8,taken:false});
  return{n,speed,length,obs,coins,powers,biome:Math.floor((n-1)/5),seed};}

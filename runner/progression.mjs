@@ -59,7 +59,7 @@ export const DAILY_MODS=[
  {id:'long',name:'מרתון',desc:'מסלול ארוך ב-20%',lengthMul:1.2}
 ];
 /** dateKey: 'YYYY-MM-DD' at Asia/Jerusalem midnight (use dateKey()). Same key => same challenge on every device. */
-export function dailyInfo(key){const r=rngFrom(hashStr('daily'+key));const mod=DAILY_MODS[Math.floor(r()*DAILY_MODS.length)];const level=3+Math.floor(r()*15);const goal=[0.5,0.6,0.7][Math.floor(r()*3)];return{key,seed:hashStr('seed'+key),level,mod,goalRatio:goal,reward:80};}
+export function dailyInfo(key){const r=rngFrom(hashStr('daily'+key));const mod=DAILY_MODS[Math.floor(r()*DAILY_MODS.length)];const level=3+Math.floor(r()*15);const goal=[0.3,0.4,0.5][Math.floor(r()*3)];return{key,seed:hashStr('seed'+key),level,mod,goalRatio:goal,reward:80};}
 export const DAILY_TZ='Asia/Jerusalem';
 /** Daily rollover is explicit: midnight in DAILY_TZ for every device (not the device clock zone). */
 export function dateKey(d=new Date(),tz=DAILY_TZ){return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}

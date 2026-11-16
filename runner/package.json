@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src.js --bundle --minify --outfile=game.js",
-    "test": "node tests/engine.cjs && node tests/slide-engine.cjs && node tests/fireballs.mjs && node tests/hazard-spacing.mjs && node tests/audio-qa.cjs && node tests/progression.mjs",
+    "test": "node tests/engine.cjs && node tests/slide-engine.cjs && node tests/fireballs.mjs && node tests/hazard-spacing.mjs && node tests/audio-qa.cjs && node tests/progression.mjs && node tests/daily-feas.mjs",
     "test:slide-touch": "node tests/slide-qa.cjs"
   },
   "keywords": [],
