@@ -1,4 +1,4 @@
-/* Stickman Hook - game shell: state machine, rendering, HUD, input, audio.
+/* stickman - game shell: state machine, rendering, HUD, input, audio.
    Original code. Uses window.StickmanPhysics, window.StickmanVisuals, window.StickmanLevels. */
 (() => {
 'use strict';

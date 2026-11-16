@@ -2,13 +2,13 @@
 
 Run the dependency-free physics checks:
 
-    node stickman-hook/tests/qa-platform-physics.cjs
+    node stickman/tests/qa-platform-physics.cjs
 
 For mobile input/render checks, install Playwright and Chromium, then run:
 
     npm install --no-save playwright
     npx playwright install chromium
-    node stickman-hook/tests/qa-platform-touch.cjs
+    node stickman/tests/qa-platform-touch.cjs
 
 The mobile replay starts level 11 as the superhero and uses real touch events.
 Only animation-frame time is controlled to make the replay deterministic. It

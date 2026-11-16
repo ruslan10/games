@@ -62,7 +62,7 @@ const { chromium } = require("playwright"),
   });
   await p.goto(
     process.env.LIVE ||
-      `http://127.0.0.1:${server.address().port}/stickman-hook/`,
+      `http://127.0.0.1:${server.address().port}/stickman/`,
   );
   await p.waitForFunction(() => !!window.__game);
   await p.evaluate(() => {

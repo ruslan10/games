@@ -1,4 +1,4 @@
-/* node stickman-hook/tests/qa-platform-physics.cjs */
+/* node stickman/tests/qa-platform-physics.cjs */
 const vm = require("vm"),
   fs = require("fs"),
   path = require("path"),

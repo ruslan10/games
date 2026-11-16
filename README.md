@@ -5,7 +5,7 @@
 ## מבנה
 
 - `index.html` - עמוד ראשי עם כרטיסי המשחקים (עברית, RTL)
-- `stickman-hook/index.html` - המשחק הראשון: נדנדת סטיקמן עם וו (פיזיקת מטוטלת, 4 שלבים, תמיכת מגע ומקלדת)
+- `stickman/index.html` - המשחק הראשון: נדנדת סטיקמן עם וו (פיזיקת מטוטלת, 30 שלבים, תמיכת מגע ומקלדת)
 
 ## פרסום ב-GitHub Pages
 
@@ -14,7 +14,7 @@
    ```
    git init
    git add .
-   git commit -m "Games site with Stickman Hook"
+   git commit -m "Games site with stickman"
    git branch -M main
    git remote add origin https://github.com/<USER>/<REPO>.git
    git push -u origin main
@@ -22,7 +22,7 @@
 3. בהגדרות הריפו: Settings -> Pages -> Source: Deploy from a branch -> Branch: `main`, תיקייה `/ (root)` -> Save
 4. האתר יהיה זמין תוך דקה בכתובת `https://<USER>.github.io/<REPO>/`
 
-## איך משחקים - סטיקמן הוק
+## איך משחקים - stickman
 
 לחצו והחזיקו את העכבר/המסך (או מקש רווח) כדי לתפוס נקודת עיגון עם הוו, שחררו כדי לעוף קדימה. משטחי הקפיצה האדומים מזנקים למעלה. הגיעו לדגל הסיום כדי לעבור שלב. נפילה מאתחלת את השלב.
 
@@ -35,3 +35,7 @@
 
 - `runner/index.html` - משחק ריצה מקורי בתלת-ממד, 20 שלבים, שלושה נתיבים, קפיצה והחלקה, מטבעות ודמויות.
 - מדריך פיתוח ובדיקות: `runner/README.md`.
+
+## תאימות לכתובת הקודמת
+
+`stickman-hook/index.html` מפנה לכתובת החדשה `stickman/`, בלי לשנות שמירות. מפתחות ה-localStorage נשארים ללא שינוי ובאותו origin.

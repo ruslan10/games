@@ -1,4 +1,4 @@
-/* node stickman-hook/tests/qa-char-unlocks.cjs
+/* node stickman/tests/qa-char-unlocks.cjs
    Character-unlock pacing + character-select score display checks.
    Serves the game dir statically, seeds localStorage saves, opens the real
    character picker on a Pixel-6-like mobile viewport and asserts which cards
@@ -30,7 +30,7 @@ async function newPage(browser, seed) {
   page.on("pageerror", (e) => {
     throw new Error("page error: " + e.message);
   });
-  await page.goto(BASE + "/stickman-hook/", { waitUntil: "load" });
+  await page.goto(BASE + "/stickman/", { waitUntil: "load" });
   return { ctx, page };
 }
 

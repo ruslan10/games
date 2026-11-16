@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>stickman - משחקים</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Heebo', sans-serif; background: #7b5cff; }
+  #game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 10; }
+  .overlay.show { display: flex; }
+
+  /* ---- menu: teal gradient like the original's menu identity ---- */
+  #menu { background: linear-gradient(180deg, #3fd0c9 0%, #7ee6c8 100%); }
+  .logo { font-size: clamp(44px, 9vw, 88px); font-weight: 900; color: #fff; letter-spacing: 1px;
+    text-shadow: 0 6px 0 rgba(0,0,0,.14); margin-bottom: 6px; }
+  .logo .red { color: #ff4d5e; text-shadow: 0 6px 0 rgba(0,0,0,.16); }
+  .menu-sub { color: rgba(255,255,255,.92); font-size: 19px; font-weight: 700; margin-bottom: 42px; }
+
+  .bigbtn { border: none; cursor: pointer; font-family: inherit; font-weight: 900; color: #fff;
+    background: linear-gradient(180deg, #ff7a5c, #ff4d5e); border-radius: 999px;
+    padding: 18px 58px; font-size: 26px; box-shadow: 0 8px 0 #d8314f, 0 14px 26px rgba(0,0,0,.22);
+    transition: transform .12s, box-shadow .12s; }
+  .bigbtn:hover { transform: translateY(-2px) scale(1.03); }
+  .bigbtn:active { transform: translateY(4px); box-shadow: 0 3px 0 #d8314f, 0 8px 14px rgba(0,0,0,.2); }
+  .bigbtn.small { padding: 13px 40px; font-size: 21px; }
+  #menu-level { margin-top: 20px; color: rgba(255,255,255,.85); font-weight: 700; font-size: 16px; }
+
+  /* ---- intro: violet ---- */
+  #intro { background: linear-gradient(180deg, #6a4de0 0%, #8f7bff 100%); }
+  .intro-level { font-size: clamp(38px, 7vw, 64px); font-weight: 900; color: #fff; text-shadow: 0 5px 0 rgba(0,0,0,.16); }
+  .intro-name { color: rgba(255,255,255,.85); font-size: 21px; font-weight: 700; margin: 8px 0 4px; }
+  .intro-hint { color: rgba(255,255,255,.75); font-size: 16px; margin-bottom: 40px; min-height: 22px; }
+  .playbtn { width: 118px; height: 118px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(180deg, #ff7a5c, #ff4d5e); box-shadow: 0 9px 0 #d8314f, 0 16px 30px rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center; transition: transform .12s, box-shadow .12s; }
+  .playbtn:hover { transform: scale(1.06); }
+  .playbtn:active { transform: translateY(5px); box-shadow: 0 3px 0 #d8314f; }
+  .playbtn svg { width: 46px; height: 46px; fill: #fff; margin-right: -8px; }
+
+  /* ---- cleared card ---- */
+  #clear { background: rgba(46, 33, 101, .88); }
+  .card { position: relative; background: #fff; border-radius: 26px; padding: 54px 48px 42px; text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35); overflow: hidden; max-width: 88vw; }
+  .card::before { content: ''; position: absolute; inset: -60%; z-index: 0;
+    background: repeating-conic-gradient(rgba(87,223,196,.22) 0 14deg, rgba(87,223,196,0) 14deg 28deg);
+    animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .card > * { position: relative; z-index: 1; }
+  .clear-title { font-size: 34px; font-weight: 900; color: #4a3ba8; margin-bottom: 18px; }
+  .pct-wrap { background: #ece9fb; border-radius: 999px; height: 26px; width: 260px; max-width: 62vw; margin: 0 auto 8px; overflow: hidden; }
+  .pct-fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #57dfc4, #3fd0c9);
+    transition: width 1s cubic-bezier(.2,.8,.25,1); }
+  .pct-label { color: #8a80c0; font-weight: 700; font-size: 15px; margin-bottom: 30px; }
+
+  /* ---- pause + corner buttons ---- */
+  #paused { background: rgba(46, 33, 101, .82); overflow-y: auto; padding: 76px 20px 32px; justify-content: flex-start; }
+  #paused .paused-title { margin-top: auto; flex-shrink: 0; }
+  .pause-actions { display: flex; flex-direction: column; gap: 15px; width: min(300px, 100%); margin-bottom: auto; flex-shrink: 0; padding-bottom: 12px; }
+  #paused .pause-actions .bigbtn { display: block; width: 100%; min-width: 0; padding: 12px 16px; font-size: 19px; border-radius: 20px; text-align: center; text-decoration: none; }
+  #paused .pause-actions .secondary { background: #5e508d; box-shadow: 0 6px 0 #3c315e, 0 10px 18px rgba(0,0,0,.18); }
+  .portal-link { margin-top: 24px; color: #263b51; font-size: 16px; font-weight: 700; text-underline-offset: 4px; }
+  @media (max-width: 380px) { #menu .bigbtn.small { padding: 13px 22px; font-size: 18px; } }
+
+  @media (max-height: 500px) and (min-width: 600px) {
+    #paused { padding: 20px; }
+    #paused .paused-title { font-size: 28px; margin-bottom: 14px; }
+    #paused .pause-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(600px, 100%); gap: 14px; }
+    #paused .pause-actions .bigbtn { font-size: 17px; padding: 9px 12px; }
+    #btn-portal { grid-column: 1 / -1; }
+  }
+  .paused-title { color: #fff; font-size: 36px; font-weight: 900; margin-bottom: 26px; }
+  .iconbtn { position: fixed; z-index: 20; width: 52px; height: 52px; border-radius: 14px; border: none; cursor: pointer;
+    background: rgba(36,31,58,.38); color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(2px); }
+  #btn-pause { top: 14px; left: 14px; }
+  #btn-mute { top: 14px; left: 76px; display: flex !important; }
+  #btn-intro-levels { top: 14px; left: 138px; }
+  #btn-intro-chars { top: 14px; left: 200px; }
+  #btn-intro-levels svg, #btn-intro-chars svg { width: 26px; height: 26px; }
+  .row { display: flex; gap: 14px; }
+
+  /* ---- win flash ---- */
+  #winflash { position: fixed; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,.85) 0%, rgba(255,255,255,0) 70%); }
+  #winflash.show { animation: flash .6s ease-out; }
+
+  /* ---- skins ---- */
+  #skins { display: flex; gap: 12px; margin-top: 26px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+  #skin-toast { position: fixed; top: 76px; left: 50%; transform: translateX(-50%) translateY(-16px);
+    background: linear-gradient(180deg, #ffd94d, #ffb020); color: #5c3a00; font-weight: 900; font-size: 18px;
+    padding: 12px 26px; border-radius: 999px; box-shadow: 0 8px 22px rgba(0,0,0,.25);
+    opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; z-index: 40; }
+  #skin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .skin-dot { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.55); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; color: #fff; transition: transform .12s; }
+  .skin-dot.sel { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 0 4px rgba(255,255,255,.25); }
+  .skin-dot.locked { opacity: .45; cursor: default; }
+  #menu-buttons { display: flex; gap: 14px; align-items: center; }
+
+  /* ---- level select ---- */
+  #levelsel { background: linear-gradient(180deg, #6a4de0 0%, #8f7bff 100%); z-index: 30; }
+  .levelsel-title { color: #fff; font-size: 34px; font-weight: 900; margin-bottom: 22px; text-shadow: 0 4px 0 rgba(0,0,0,.16); }
+  #level-grid { display: grid; grid-template-columns: repeat(6, 58px); gap: 12px; max-width: 92vw; margin-bottom: 26px; }
+  .lv-btn { width: 58px; height: 58px; border-radius: 16px; border: none; cursor: pointer; font-family: inherit;
+    font-weight: 900; font-size: 20px; background: #fff; color: #4a3ba8; box-shadow: 0 5px 0 rgba(36,31,58,.35);
+    transition: transform .1s; position: relative; padding-bottom: 12px; }
+  .lv-btn:hover { transform: scale(1.07); }
+  .lv-btn.done { background: #57dfc4; color: #14524a; }
+  .lv-btn.current { background: #ffb020; color: #5c3a00; }
+  .lv-btn.locked { background: rgba(255,255,255,.22); color: rgba(255,255,255,.65); cursor: default; box-shadow: none; font-size: 17px; }
+  .lv-btn.locked:hover { transform: none; }
+  @media (max-width: 600px) { #level-grid { grid-template-columns: repeat(5, 52px); gap: 9px; } .lv-btn { width: 52px; height: 52px; } }
+
+  /* ---- character select ---- */
+  #charsel { background: linear-gradient(180deg, #6a4de0 0%, #8f7bff 100%); z-index: 30; }
+  /* scrollable picker overlays: center when content fits, full scroll when not */
+  #charsel, #levelsel { overflow-y: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; padding: 76px 10px 30px; }
+  #charsel .levelsel-title, #levelsel .levelsel-title { margin-top: auto; }
+  #charsel > .bigbtn, #levelsel > .bigbtn { margin-bottom: auto; }
+  .sel-x { position: fixed; top: 14px; left: 14px; width: 52px; height: 52px; border-radius: 14px; border: none;
+    background: rgba(36,31,58,.38); color: #fff; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 5; }
+  .sel-x svg { width: 24px; height: 24px; }
+  #char-grid { display: grid; grid-template-columns: repeat(5, 150px); gap: 16px; max-width: 94vw; margin-bottom: 26px; }
+  .char-card { position: relative; border: none; cursor: pointer; font-family: inherit;
+    background: rgba(255,255,255,.14); border-radius: 20px; padding: 12px 8px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: transform .12s, box-shadow .12s, background .12s; }
+  .char-card:hover { transform: translateY(-3px) scale(1.04); background: rgba(255,255,255,.22); }
+  .char-card.sel { background: rgba(255,255,255,.28); box-shadow: 0 0 0 4px #ffb020, 0 10px 24px rgba(0,0,0,.25); }
+  .char-card.locked { cursor: default; }
+  .char-card.locked:hover { transform: none; background: rgba(255,255,255,.14); }
+  .char-card.locked canvas { filter: grayscale(.95) brightness(.75); }
+  .char-card canvas { width: 110px; height: 132px; }
+  .char-name { color: #fff; font-weight: 900; font-size: 17px; text-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .char-ability { color: rgba(255,255,255,.82); font-weight: 700; font-size: 11px; line-height: 1.25; margin-top: 2px; min-height: 28px; }
+  .char-total { color: #fff; font-weight: 900; font-size: 18px; margin: -6px 0 14px; text-shadow: 0 2px 0 rgba(0,0,0,.18); }
+  .char-left { display: block; font-size: 10px; font-weight: 800; color: #fff; margin-top: 1px; }
+  .char-req { position: absolute; top: 8px; left: 8px; background: rgba(36,31,58,.75); color: #ffd94d;
+    font-weight: 900; font-size: 13px; padding: 3px 9px; border-radius: 12px; text-align: center; line-height: 1.15; }
+  @media (max-width: 820px) { #char-grid { grid-template-columns: repeat(3, 108px); gap: 10px; }
+    .char-card canvas { width: 80px; height: 96px; } .char-name { font-size: 14px; } .char-ability { font-size: 10px; min-height: 25px; } }
+  @media (max-width: 380px) { #char-grid { grid-template-columns: repeat(2, 108px); } }
+
+  #clear-time { color: #8a80c0; font-weight: 700; font-size: 15px; margin: -18px 0 24px; white-space: pre-line; }
+  #clear-stars { font-size: 34px; line-height: 1.1; margin: -8px 0 16px; letter-spacing: 1px; color: #ffd94d; font-weight: 900; text-shadow: 0 2px 0 rgba(0,0,0,.15); }
+  .clear-newbest { font-size: 15px; color: #4ec94f; font-weight: 900; letter-spacing: 0; margin-top: 6px; }
+  .clear-star { color: #ddd8f2; display: inline-block; }
+  .clear-star.on { color: #ffcf3f; text-shadow: 0 0 18px rgba(255,200,60,.8);
+    animation: starpop .45s cubic-bezier(.2,1.6,.4,1) backwards; }
+  @keyframes starpop { 0% { transform: scale(0) rotate(-40deg); } 100% { transform: scale(1) rotate(0); } }
+  .lv-stars { position: absolute; bottom: 2px; left: 0; right: 0; display: flex; justify-content: center; gap: 1px; }
+  .lv-stars i { font-style: normal; font-size: 10px; color: rgba(36,31,58,.22); }
+  .lv-stars i.on { color: #ffb020; text-shadow: 0 0 4px rgba(255,176,32,.6); }
+
+  /* ---- fail flash ---- */
+  #failflash { position: fixed; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255,60,80,0) 40%, rgba(255,60,80,.55) 100%); }
+  #failflash.show { animation: flash .55s ease-out; }
+  @keyframes flash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+
+  @media (max-width: 600px) {
+    .bigbtn { padding: 15px 44px; font-size: 22px; }
+    .playbtn { width: 100px; height: 100px; }
+    .card { padding: 42px 28px 32px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<button class="iconbtn" id="btn-pause" aria-label="השהיה">⏸</button>
+<button class="iconbtn" id="btn-mute" aria-label="צליל">🔊</button>
+<button class="iconbtn" id="btn-intro-levels" aria-label="בחירת שלב"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="2.2"/><rect x="13" y="3" width="8" height="8" rx="2.2"/><rect x="3" y="13" width="8" height="8" rx="2.2"/><rect x="13" y="13" width="8" height="8" rx="2.2"/></svg></button>
+<button class="iconbtn" id="btn-intro-chars" aria-label="דמויות"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.6" r="4.2"/><path d="M12 13.2c-4.1 0-7.4 2.7-7.9 6.4a1.4 1.4 0 0 0 1.4 1.6h13a1.4 1.4 0 0 0 1.4-1.6c-.5-3.7-3.8-6.4-7.9-6.4z"/></svg></button>
+
+<div class="overlay show" id="menu">
+  <div class="logo" dir="ltr">stick<span class="red">man</span></div>
+  <div class="menu-sub">תפסו. נדנדו. עפו.</div>
+  <div id="menu-buttons">
+    <button class="bigbtn" id="btn-play">שחקו</button>
+  </div>
+  <div style="display:flex; gap:14px; margin-top:18px">
+    <button class="bigbtn small" id="btn-levels">בחירת שלב</button>
+    <button class="bigbtn small" id="btn-chars">דמויות</button>
+  </div>
+  <div id="menu-level">שלב 1 / 30</div>
+  <a class="portal-link" href="../">לדף הבית של המשחקים</a>
+  <div id="skin-toast"></div>
+</div>
+
+<div class="overlay" id="levelsel">
+  <button class="sel-x" id="btn-levels-x" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="levelsel-title">בחירת שלב</div>
+  <div id="level-grid"></div>
+  <button class="bigbtn small" id="btn-levels-close">סגירה</button>
+</div>
+
+<div class="overlay" id="charsel">
+  <button class="sel-x" id="btn-chars-x" aria-label="סגירה"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="levelsel-title">בחירת דמות</div>
+  <div class="char-total" id="char-total"></div>
+  <div id="char-grid"></div>
+  <button class="bigbtn small" id="btn-chars-close">סגירה</button>
+</div>
+
+<div class="overlay" id="intro">
+  <div class="intro-level" id="intro-level">שלב 1</div>
+  <div class="intro-name" id="intro-name"></div>
+  <div class="intro-hint" id="intro-hint"></div>
+  <div>
+    <button class="playbtn" id="btn-go" aria-label="התחלה">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="overlay" id="clear">
+  <div class="card">
+    <div class="clear-title" id="clear-title">השלב הושלם!</div>
+    <div id="clear-stars"></div>
+    <div class="pct-wrap"><div class="pct-fill" id="clear-fill"></div></div>
+    <div class="pct-label" id="clear-pct">0%</div>
+    <div id="clear-time"></div>
+    <button class="bigbtn small" id="btn-next">השלב הבא</button>
+  </div>
+</div>
+
+<div class="overlay" id="paused">
+  <div class="paused-title">השהיה</div>
+  <div class="pause-actions">
+    <button class="bigbtn small" id="btn-resume">המשך</button>
+    <button class="bigbtn small" id="btn-restart">התחל מחדש</button>
+    <button class="bigbtn small secondary" id="btn-pause-levels">בחירת שלב</button>
+    <button class="bigbtn small secondary" id="btn-home">לתפריט המשחק</button>
+    <a class="bigbtn small secondary" id="btn-portal" href="../">לדף הבית של המשחקים</a>
+  </div>
+</div>
+
+<div id="failflash"></div>
+<div id="winflash"></div>
+
+<script src="physics.js"></script>
+<script src="visuals.js"></script>
+<script src="levels.js"></script>
+<script src="fruits.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

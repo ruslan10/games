@@ -1,4 +1,4 @@
-/* Stickman Hook - level definitions (original layouts, poki-style pacing).
+/* stickman - level definitions (original layouts, poki-style pacing).
    World units: px, y down. Player radius 15. catchRadius 390, maxRope 420.
    anchors: {id,x,y}  pads: bouncy bars {id,x1,y1,x2,y2,restitution?,minSpeed?,boostX?,boostY?}
    Long low pads act as the segmented "ground bars" from the original - they catch
