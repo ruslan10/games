@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src.js --bundle --minify --outfile=game.js",
-    "test": "node tests/engine.cjs && node tests/fireballs.mjs"
+    "test": "node tests/engine.cjs && node tests/fireballs.mjs && node tests/audio-qa.cjs"
   },
   "keywords": [],
   "author": "",
