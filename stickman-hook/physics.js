@@ -57,7 +57,7 @@
     reset(p){
       this.player=Object.assign({},this._initial,p);this.player.radius=Math.max(1,this.player.radius);
       this.rope=null;this.held=false;this.tick=0;this.time=0;this.accumulator=0;
-      this.events=[];this._padTimes=new Map();this._contact=false;this._airHops=this.options.airHops===undefined?1:this.options.airHops;
+      this.events=[];this._padTimes=new Map();this._contact=false;this._standingPad=null;this._platformTakeoff=false;this._airHops=this.options.airHops===undefined?1:this.options.airHops;
       this.camera={x:this.player.x+this.options.cameraOffsetX,y:this.player.y+this.options.cameraOffsetY};
       return this;
     }
@@ -67,6 +67,8 @@
       let best=null,dist=this.options.catchRadius;
       const lr=this._lastRelease,block=lr&&(this.time-lr.time)<this.options.regrabDelay?lr.id:null;
       for(const a of this.anchors){if(a.enabled===false)continue;if(block&&a.id===block)continue;
+        // Let a platform jump rise freely before held input catches a hook.
+        if(this._platformTakeoff&&this.player.vy<0)continue;
         const d=Math.hypot(a.x-this.player.x,a.y-this.player.y);
         if(d<=dist){dist=d;best=a;}}
       return best;
@@ -89,10 +91,21 @@
         this._event('release',{anchorId:this.rope.anchor.id,vx:this.player.vx,vy:this.player.vy});this._lastRelease={id:this.rope.anchor.id,time:this.time};this.rope=null;}
       return this;
     }
-    /* tap(): poki-style tap. Hook the nearest in-range anchor; with no anchor
+    /* tap(): jump forward off a resting ceiling plate. Otherwise hook the
+       nearest in-range anchor; with no anchor
        in range, hop in the current direction (ground jump when in contact,
        one air-hop per airtime otherwise). Returns what happened. */
     tap(){
+      if(this._standingPad){
+        // Jump first on a resting ceiling plate, even with a nearby lower hook.
+        // Releasing an existing rope also recovers a hero already in the old trap.
+        this.release();
+        const p=this.player,gb=this.options.groundBoost===undefined?1:this.options.groundBoost;
+        const dir=this.options.forward||1;
+        p.vy=-620*gb;p.vx=Math.max(p.vx*dir,260*gb)*dir;
+        this._standingPad=null;this._contact=false;this._platformTakeoff=true;
+        this._event('jump',{kind:'platform'});return 'jump';
+      }
       if(this.rope)return 'swing';
       const a=this.nearestAnchor();
       if(a){this.attach(a);return 'hook';}
@@ -204,7 +217,7 @@
         const top=a.y1-a.standTopOffset,left=Math.min(a.x1,a.x2),right=Math.max(a.x1,a.x2);
         if(p.x<left||p.x>right||p.vy<0)continue;
         if(previous.y+p.radius>top+0.01||p.y+p.radius<top)continue;
-        p.y=top-p.radius;p.vy=0;contact=true;
+        p.y=top-p.radius;p.vy=0;contact=true;this._standingPad=a;
         this._groundNormal={x:0,y:-1};
       }
       return contact;
@@ -212,6 +225,8 @@
     _tick(){
       if(this.onBeforeStep)this.onBeforeStep(this);
       const p=this.player,o=this.options,h=o.fixedDt;
+      this._standingPad=null;
+      if(p.vy>=0)this._platformTakeoff=false;
       if(this.held&&!this.rope){const a=this.nearestAnchor();if(a)this.attach(a);}
       // Adaptive collision microsteps keep travel below 0.4 radii, preventing
       // tunneling at terminal speed without depending on the render frame rate.
