@@ -7,3 +7,5 @@
 /* Instructions stay above the road, not over the runner. */
 #toast{top:104px;bottom:auto;padding:8px 12px;font-size:11px;line-height:1.45;max-width:88%;background:#253d50e8}
 @media(orientation:landscape){#toast{top:76px;font-size:10px;max-width:66%}}
+
+#flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle,#ff8a1f00 30%,#ff3a1faa 100%);opacity:0;transition:opacity .25s}#flash.on{opacity:1;transition:none}.hudrow #mute{margin-inline-start:auto}
