@@ -317,7 +317,8 @@ function buildWorld() {
     assist: L.assist || 240, assistSpeed: 900,
     anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
-      boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640 })),
+      boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640,
+      nx: p.nx, ny: p.ny, restitution: p.restitution })),
   }, abil));
   const a = L.anchors.find(a => a.id === L.start.anchorId);
   const off = 130, dy = Math.sqrt(L.start.rope * L.start.rope - off * off);
@@ -623,7 +624,27 @@ function drawPads(L) {
     ctx.save();
     ctx.translate(p.x1, p.y1);
     ctx.rotate(ang);
-    if (p.kind === 'tramp' || p.kind === 'trampV') {
+    if (p.kind === 'trampWall' || p.kind === 'trampCeil') {
+      // obstacle trampoline: long dark arm attached to ceiling/ground, red spring face on the bounce side
+      ctx.fillStyle = '#241f3a';
+      roundRect(-10, 0, len + 20, 40, 12); ctx.fill();
+      ctx.strokeStyle = '#4a4180'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      for (let x = 20; x < len - 10; x += 34) {
+        ctx.beginPath(); ctx.moveTo(x, 34); ctx.lineTo(x + 9, 20); ctx.lineTo(x, 8); ctx.stroke();
+      }
+      ctx.fillStyle = '#ff4d5e';
+      roundRect(-6, -20, len + 12, 20, 10); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      roundRect(2, -17, len - 4, 5, 3); ctx.fill();
+      if (p.kind === 'trampCeil') {
+        // support column up to the ceiling
+        ctx.restore(); ctx.save();
+        ctx.fillStyle = '#241f3a';
+        const cx2 = (p.x1 + p.x2) / 2;
+        ctx.fillRect(cx2 - 11, p.y1 - 900, 22, 900 - 6);
+        ctx.fillStyle = '#3a3358'; ctx.fillRect(cx2 - 4, p.y1 - 900, 5, 880);
+      }
+    } else if (p.kind === 'tramp' || p.kind === 'trampV') {
       // angled spring trampoline: dark base, red springy top with white shine
       ctx.fillStyle = '#241f3a';
       roundRect(0, -6, len, 22, 10); ctx.fill();
@@ -712,7 +733,7 @@ function drawPads(L) {
     }
     ctx.restore();
     // snow-theme decoration: a snowman sitting by every few trampoline-like pads
-    if (snow && p.kind && (trampIdx++ % 3 === 0)) {
+    if (snow && p.kind && p.kind !== 'trampWall' && p.kind !== 'trampCeil' && (trampIdx++ % 3 === 0)) {
       const spr = snowmanSprite();
       const mx = p.kind === 'bump' ? p.x1 - 64 : (p.x1 + p.x2) / 2 + 34;
       const my = p.kind === 'bump' ? p.y1 - 26 : Math.min(p.y1, p.y2) - 84;
@@ -899,6 +920,7 @@ function drawPadCues(L, cam) {
   for (const pd of L.pads) {
     const cx = (pd.x1 + pd.x2) / 2, cy = (pd.y1 + pd.y2) / 2;
     const sx = cx - cam.x + W / 2, sy = cy - cam.y + H / 2;
+    if (pd.kind === 'trampWall' || pd.kind === 'trampCeil') continue;
     if (sy > -60 && sy < H + 60) continue;
     if (sx < -120 || sx > W + 120) continue;
     const up = sy <= -60;
