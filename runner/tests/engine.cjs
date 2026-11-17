@@ -61,5 +61,14 @@ check(level(3).powers.some(p=>p.type==='shoes'),'shoes exist');check(level(7).po
 {const a=level(7,{seed:12345}),b=level(7,{seed:12345}),c=level(7,{seed:999});check(JSON.stringify(a)===JSON.stringify(b),'seeded level deterministic');check(JSON.stringify(a.obs)!==JSON.stringify(c.obs),'seed changes layout');
  check(Math.abs(level(5,{speedMul:1.12}).speed-level(5).speed*1.12)<.01,'daily speed mod');check(Math.abs(level(5,{lengthMul:1.2}).length-level(5).length*1.2)<1,'daily length mod');
  const dr=new Run(6,{seed:777,speedMul:1.12});check(Math.abs(dr.level.speed-level(6).speed*1.12)<.01,'run carries daily mods');}
+// Magnet: coins in range are visibly pulled in (pull timer), then collected; far coins stay.
+{const r=new Run(1);r.level.coins=[{x:6,lane:1,y:.7,taken:false},{x:-3,lane:-1,y:.7,taken:false},{x:60,lane:0,y:.7,taken:false}];r.level.obs=[];r.level.powers=[{x:1,lane:0,type:'magnet',taken:false}];
+ tick(r,.1);const c0=r.level.coins[0];check(r.magnet>0&&c0.pull>0&&!c0.taken||c0.taken,'magnet starts pulling nearby coin');check(!r.level.coins[2].pull,'far coin not pulled');
+ tick(r,.4);check(r.level.coins[0].taken&&r.level.coins[1].taken,'pulled coins collected');check(!r.level.coins[2].taken,'far coin stays');check(r.coins>=2,'pull pays out coins');}
+// Every power-up has a real effect.
+{const mk=t=>{const r=new Run(1,{noStartShield:true});r.level.obs=[];r.level.powers=[{x:1,lane:0,type:t,taken:false}];tick(r,.2);return r;};
+ check(mk('shield').shield===1,'shield');check(mk('shoes').shoes>0,'shoes');check(mk('flight').flight>0,'flight');check(mk('board').vehicle==='board','board');check(mk('pogo').vehicle==='pogo','pogo');
+ const f=mk('flight');tick(f,.8);check(f.y>2,'flight lifts');}
+
 console.log(checks+' checks passed, 100 full level simulations');
 let completions=0;for(let n=1;n<=20;n++)for(const dt of [1/120,1/60,1/30]){const r=new Run(n);let last=-100;for(let ticks=0;ticks<15000&&r.status==='playing';ticks++){const o=r.level.obs.find(o=>o.type!=='ramp'&&o.x>r.x-1.3);if(o){const target=o.type==='mover'?Math.round(eff(o)):o.lane;r.move(Math.sign(target-r.lane));const d=o.x-r.x;if(d<5.4&&d>3&&r.x-last>10){(o.type==='arch'||o.type==='tunnel')?r.duck():r.jump();last=r.x;}}r.step(dt);}check(r.status==='won',`jump/slide bot level ${n} dt ${dt}`);completions++;}console.log(completions+' full action-bot completions at 30/60/120 Hz');

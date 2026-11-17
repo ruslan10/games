@@ -84,8 +84,9 @@ class Run{
   this.invincible=Math.max(0,this.invincible-dt);this.chaser=Math.max(0,this.chaser-dt);
   for(const c of this.level.coins){if(c.taken)continue;
    const near=Math.abs(c.x-this.x)<1.3&&Math.abs(c.lane*2.6-this.lateral)<1.05&&Math.abs(c.y-this.y-.7)<1.4;
-   const magnet=this.magnet>0&&Math.abs(c.x-this.x)<8&&Math.abs(c.lane*2.6-this.lateral)<6;
-   if(near||magnet){c.taken=true;this.collected++;this.coins+=this.mult*this.coinMul;this._comboPoint();this.events.push({type:'coin'});}}
+   if(this.magnet>0&&!c.pull&&Math.abs(c.x-this.x)<8&&Math.abs(c.lane*2.6-this.lateral)<6)c.pull=1e-4;
+   if(c.pull)c.pull+=dt;
+   if(near||c.pull>=.2){c.taken=true;this.collected++;this.coins+=this.mult*this.coinMul;this._comboPoint();this.events.push({type:'coin'});}}
   for(const p of this.level.powers){if(!p.taken&&Math.abs(p.x-this.x)<1.3&&Math.abs(p.lane*2.6-this.lateral)<1){p.taken=true;
    if(p.type==='shield')this.shield=Math.min(3,this.shield+1);
    else if(p.type==='magnet')this.magnet=this.up.magnetSeconds+(this.char.ability==='magnet'?4:0);
