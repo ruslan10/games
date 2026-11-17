@@ -45,8 +45,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     assert(after.length===1,'feed next instruction played after praise, not stacked');
     assert(!/praise\d/.test(pl[pl.length-1]),'latest playback is the new instruction, not praise');
   }else{
-    // same target re-rolled: narration key unchanged, nothing should replay or stack
-    await sleep(300);
+    // same target re-rolled: key same but task advanced, instruction must still speak
+    await p.waitForFunction(()=>/feed_(target|mult)_pre/.test(MonsterLabVoice.state().src)&&MonsterLabVoice.state().playing,null,{timeout:6000});
     assert(await p.evaluate(()=>MonsterLabVoice.state().pending)===null,'same-key next question stacks nothing');
   }
   await p.locator('#exit').click();await p.locator('[data-modal="1"]').click();
@@ -71,15 +71,16 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await p.locator('#check').click();
   await sleep(300);
   assert.equal(await praiseCount(p),before+2,'praise again on second machine success');
-  // rapid next while praise still playing: same narration key, new task - praise must be cut
+  // rapid next while praise still playing: same narration key, new task - praise cut AND new instruction starts
   let stSrc=await p.evaluate(()=>MonsterLabVoice.state().src);
   assert(/praise\d/.test(stSrc),'praise is on the channel before rapid next');
+  let mPlays=(await plays(p)).length;
   await p.locator('#next').click();
-  await sleep(250);
-  let stNow=await p.evaluate(()=>MonsterLabVoice.state());
-  assert(!/praise\d/.test(stNow.src)||!stNow.playing,'stale praise cut on next same-key task');
-  assert.equal(stNow.playing,false,'nothing left playing over the new machine task');
-  assert.equal(stNow.pending,null,'no pending praise carried into the new task');
+  await p.waitForFunction(()=>/machine_q/.test(MonsterLabVoice.state().src)&&MonsterLabVoice.state().playing,null,{timeout:6000});
+  let pl2=(await plays(p)).slice(mPlays);
+  assert(/machine_q\.mp3/.test(pl2[0]),'new machine instruction starts on same-key advance');
+  assert(!/praise\d/.test(pl2[0]),'stale praise not left playing over the new task');
+  assert.equal(await p.evaluate(()=>MonsterLabVoice.state().pending),null,'no pending praise carried into the new task');
   await p.locator('#exit').click();await p.locator('[data-modal="1"]').click();
   console.log('PASS machine: praise per success despite repeated narration key, stale praise cut on rapid next');
 
@@ -105,6 +106,14 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     await p.locator('#check').click();
     await sleep(300);
     assert.equal(await praiseCount(p),before+1,'praise on fractions success');
+    // band 0 is always compare: next question shares the frac_compare key but must still speak
+    let fPlays=(await plays(p)).length;
+    await p.locator('#next').click();
+    await p.waitForFunction(()=>/frac_compare/.test(MonsterLabVoice.state().src)&&MonsterLabVoice.state().playing,null,{timeout:6000});
+    pl=(await plays(p)).slice(fPlays);
+    assert(/frac_compare\.mp3/.test(pl[0]),'new fractions instruction starts on same-key advance');
+    st=await p.evaluate(()=>MonsterLab.getState());
+    assert(st&&st.q.kind==='compare','assumption holds: band 0 next question is compare');
   }
   await p.locator('#exit').click();await p.locator('[data-modal="1"]').click();
   console.log('PASS fractions: praise on success');

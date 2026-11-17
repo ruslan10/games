@@ -144,7 +144,7 @@ function timesAct(a){const t=tm,n=t.n,L=window.Lab3D;if(!t)return;
 save.voice=save.voice!==false;
 const VQ=(document.currentScript?.src.match(/[?&]v=([a-f0-9]+)/)||[])[1]||'';
 const vaud=new Audio();vaud.preload='auto';
-let vtok=0,vUnlocked=false,vKey=null,vParts=null,vPlaying=false,vBlocked=false;
+let vtok=0,vUnlocked=false,vKey=null,vTask=-1,vParts=null,vPlaying=false,vBlocked=false;
 const vUrl=p=>'audio/'+p+'.mp3'+(VQ?'?v='+VQ:'');
 const vNum=n=>Number.isInteger(n)&&n>=1&&n<=99?'n'+n:null;
 const vMult=(a,b,first)=>['mult_q_pre',vNum(a),'mult_q_mid',vNum(b),'mult_q_post'];
@@ -189,14 +189,14 @@ function praise(){
     if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){voicePlay([p.clip]);praiseTask=p.task}},80)}
 function voiceSync(){
   const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
-  const parts=voiceParts(),key=parts?parts.join('|'):null;
+  const parts=voiceParts(),key=parts?parts.join('|'):null,task=taskSeq;
   const host=document.querySelector('.top-actions')||document.querySelector('header');
   if(host&&parts&&!document.getElementById('voiceSay')){
     host.insertAdjacentHTML('afterbegin',`<button class="icon ghost voice-btn" id="voiceSay" type="button">🔊</button>`);
-    document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;voicePlay(p)};
+    document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;vTask=taskSeq;voicePlay(p)};
     voiceBtnState()}
-  if(key===vKey){if(praiseTask>=0&&praiseTask!==taskSeq)voiceStop();return}
-  vKey=key;
+  if(key===vKey&&task===vTask)return;
+  vKey=key;vTask=task;
   const pend=pendingPraise;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;
   const pre=pend&&pend.screen===screen&&pend.task===taskSeq?pend.clip:null;
   if(!key){if(pre&&save.voice&&vUnlocked){voicePlay([pre]);praiseTask=pend.task}else voiceStop();return}
