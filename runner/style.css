@@ -34,7 +34,7 @@
 #collectiondetails .res{color:#254c49}#collectiondetails .res h3{color:#254c49}#collectiondetails .res small{color:#43615b}#collectiondetails .res p{color:#345b51}
 
 /* Only while attached: mark the existing left control, without covering the road. */
-#controls #left.zip-exit{background:#ffe19b;color:#302c40;border:2px solid #fff1c9;box-shadow:0 0 0 3px #754fb477}
-#controls #left.zip-exit small{font-size:11px;line-height:1.2}
+#controls #left.zip-exit,#controls #slide.zip-exit{background:#ffe19b;color:#302c40;border:2px solid #fff1c9;box-shadow:0 0 0 3px #754fb477}
+#controls #left.zip-exit small,#controls #slide.zip-exit small{font-size:11px;line-height:1.2}
 
 #powerlabel.zip-hint{width:fit-content;max-width:100%;padding:6px 12px;border-radius:12px;background:#253d50ed;color:#fff1c9;font-weight:bold;line-height:1.4}

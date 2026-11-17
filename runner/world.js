@@ -101,7 +101,8 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  const dc=document.createElement('canvas');dc.width=dc.height=64;const dx=dc.getContext('2d'),grad=dx.createRadialGradient(32,32,0,32,32,31);grad.addColorStop(0,'#00000070');grad.addColorStop(.4,'#00000042');grad.addColorStop(1,'#00000000');dx.fillStyle=grad;dx.fillRect(0,0,64,64);const shadow=new T.Mesh(new T.PlaneGeometry(1.8,1.45),new T.MeshBasicMaterial({map:new T.CanvasTexture(dc),transparent:true,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.035;scene.add(shadow);
  const objects=new T.Group();scene.add(objects);let coins=[],powers=[],movers=[],coinMesh=null,coinCount=0,obstacleMesh=null,finishMesh=null;const scratch=new T.Object3D();let pickups=[],pbMarker=null;
  function sign(text,bg='#176b70',w=2.2,h=1.0){const c=document.createElement('canvas');c.width=384;c.height=192;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(4,4,376,184,28);ctx.fill();ctx.strokeStyle='#fff0d5';ctx.lineWidth=8;ctx.stroke();ctx.fillStyle='#fff7df';ctx.font='bold 65px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.direction='rtl';ctx.fillText(text,192,102,350);const map=new T.CanvasTexture(c),sp=new T.Sprite(new T.SpriteMaterial({map,depthTest:true}));sp.scale.set(w,h,1);return sp;}
- const ride=new T.Group();{const a=[];rb(a,0,.13,0,.7,.16,1.25,'#ec8e3e');for(const xx of [-.38,.38])for(const zz of [-.4,.4])ball(a,xx,.08,zz,.12,.12,.12,'#31516c');mesh(a,ride,true);}scene.add(ride);ride.visible=false;
+ // A real little skateboard: kicktail deck, grip tape, painted edge, metal trucks, light wheels with hubs.
+ const ride=new T.Group();{const a=[];rb(a,0,.17,0,.62,.075,1.36,'#e2692e');rb(a,0,.21,-.74,.54,.06,.26,'#e2692e',.45);rb(a,0,.21,.74,.54,.06,.26,'#e2692e',-.45);rb(a,0,.212,0,.58,.018,1.2,'#2e3742');rb(a,0,.14,0,.635,.028,1.28,'#ffd166');for(const zz of [-.46,.46]){cyl(a,0,.095,zz,.032,.74,'#aeb6bf',0,Math.PI/2);for(const xx of [-.36,.36]){cyl(a,xx,.085,zz,.088,.075,'#f4f6f8',0,Math.PI/2);ball(a,xx,.085,zz,.042,.042,.042,'#31516c');}}mesh(a,ride,true);}scene.add(ride);ride.visible=false;
  const pogo=new T.Group();{const a=[];cyl(a,0,.35,0,.055,.75,'#65d8ca');for(let i=0;i<7;i++){const ring=new T.Mesh(new T.TorusGeometry(.13,.025,5,12),new T.MeshStandardMaterial({color:'#ffcc61'}));ring.rotation.x=Math.PI/2;ring.position.y=.05+i*.055;pogo.add(ring);}b(a,0,.52,0,.68,.06,.2,'#d58bf2');mesh(a,pogo,true);}scene.add(pogo);pogo.visible=false;
  const zipHandle=new T.Group();{const a=[];cyl(a,0,0,0,.035,.5,'#6a5140');rb(a,0,-.25,.08,1.0,.075,.09,'#f5cb72');mesh(a,zipHandle,true);}scene.add(zipHandle);zipHandle.visible=false;
  // The chaser: a stocky dark street dog that looms behind the runner after a stumble.
@@ -135,7 +136,7 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
   ball(list,0,1,0,.39,.45,.27,col);b(list,0,1.03,.28,.14,.48,.04,'#fff8dc');
   if(p.type==='magnet')b(list,0,.83,.28,.43,.12,.04,'#fff8dc');
   if(p.type==='shoes'){b(list,0,.76,.3,.36,.13,.18,'#fff8dc');b(list,.1,.7,.38,.16,.1,.12,'#fff8dc');}
-  if(p.type==='board'){rb(list,0,.62,0,.8,.12,.45,'#e98b34');for(const s of [-1,1])ball(list,s*.3,.52,.2,.09,.09,.09,'#31516c');}
+  if(p.type==='board'){rb(list,0,.64,0,.8,.1,.44,'#e2692e');rb(list,0,.695,0,.72,.03,.4,'#2e3742');rb(list,0,.585,0,.84,.03,.42,'#ffd166');for(const s of [-1,1])cyl(list,s*.3,.545,.18,.075,.07,'#f4f6f8',Math.PI/2,0);}
   if(p.type==='pogo'){cyl(list,0,1,.1,.04,1,'#fff1c5');b(list,0,1.4,.1,.55,.06,.1,'#c17be0');}
   if(p.type==='flight')for(const s of [-1,1])b(list,s*.32,1.08,.05,.42,.07,.2,'#fff8dc',s*.35);
   const g=mesh(list,objects,false);powers.push({p,g});}
@@ -158,9 +159,10 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  const delta=playing?Math.max(0,dist-lastDistance):menu?dt*13:0;lastDistance=dist;if(playing||menu)runPhase+=delta*1.2;
  const stride=Math.sin(runPhase),air=y>.04,targetDuck=state?.slide>0?1:0;duck+=(targetDuck-duck)*(1-Math.exp(-dt*20));
  const targetLean=state?(state.lane*2.6-x)*-.12:0;lean+=(targetLean-lean)*(1-Math.exp(-dt*14));
- hero.position.set(x,y+(playing||menu?Math.sin(runPhase*2)*.024+.025:0),0);hero.rotation.set(-duck*.85-(state?.trickRotation||0),Math.sin(runPhase)*.025,lean);hero.scale.set(1.16,1.16*(1-duck*.38),1.16);
- rig.body.rotation.x=-.10+(air?-.06:0);rig.body.rotation.y=stride*.075;rig.head.rotation.y=-stride*.045;rig.head.rotation.x=air?-.05:Math.sin(runPhase*2)*.02;
- for(const l of limbs){if(l.kind==='leg'){const a=runPhase+(l.side>0?Math.PI:0);l.g.rotation.x=air?-.45*l.side:Math.sin(a)*.7;l.knee.rotation.x=air?-.85:-Math.max(0,-Math.sin(a))*1.15-.08;l.foot.rotation.x=air?-.3:-Math.max(0,Math.sin(a))*.26;}else{l.g.rotation.x=state?.zip?3.0:air?-.65:-stride*l.side*.58;l.g.rotation.z=l.side*-.08;l.knee.rotation.x=(state?.zip?.12:.88)+Math.max(0,-stride*l.side)*.3;}}
+ const boarding=!!state&&state.vehicle==='board';
+ hero.position.set(x,y+(boarding?.12:0)+(playing||menu?Math.sin(runPhase*2)*.024+.025:0),0);hero.rotation.set(-duck*.85-(state?.trickRotation||0),Math.sin(runPhase)*.025,lean);hero.scale.set(1.16,1.16*(1-duck*.38),1.16);
+ rig.body.rotation.x=-.10+(air?-.06:0)+(boarding?-.13:0);rig.body.rotation.y=stride*.075;rig.head.rotation.y=-stride*.045;rig.head.rotation.x=air?-.05:Math.sin(runPhase*2)*.02;
+ for(const l of limbs){if(l.kind==='leg'){const a=runPhase+(l.side>0?Math.PI:0);l.g.rotation.x=boarding?-.32*l.side:air?-.45*l.side:Math.sin(a)*.7;l.knee.rotation.x=boarding?-.55:air?-.85:-Math.max(0,-Math.sin(a))*1.15-.08;l.foot.rotation.x=boarding?.1:air?-.3:-Math.max(0,Math.sin(a))*.26;}else{l.g.rotation.x=state?.zip?3.0:air?-.65:boarding?-.35:-stride*l.side*.58;l.g.rotation.z=l.side*(boarding?-.5:-.08);l.knee.rotation.x=(state?.zip?.12:boarding?.5:.88)+Math.max(0,-stride*l.side)*(boarding?0:.3);}}
  if(tail){tail.rotation.z=Math.sin(runPhase*.55)*.19;tail.rotation.x=.65+Math.sin(runPhase)*.07;}
  bubble.visible=!!state?.shield;hero.visible=!(state?.invincible>0&&Math.floor(animTime*14)%2);
  ride.visible=!!state&&state.vehicle==='board';ride.position.set(x,y+.02,0);ride.rotation.z=lean;
