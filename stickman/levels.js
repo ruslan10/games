@@ -380,11 +380,12 @@ for (const [i, o] of OPENERS) {
 window.StickmanLevels.forEach((L, i) => addObstacles(L, i));
 
 /* ---------- feature twists: moving/breakable/toggling anchors, wind, bumper gaps ----------
-   Levels 15-30 (indices 14+) get gentle anchor motion first, then breakable and
+   Levels 10+ (indices 9+) get gentle anchor motion (up/down and side to side) first, then breakable and
    toggling hooks deeper in. Base layouts, pads and fruits are untouched. */
 function anchorTwists(L, idx) {
-  if (idx < 14) return L;
+  if (idx < 9) return L;
   const A = L.anchors;
+  const early = idx < 14; // levels 10-14: only gentle sliding hooks, no breakable/toggling
   // breakable/toggling hooks only where a missed catch lands on springs;
   // net-free levels get gentle motion only, so timing stays fair.
   const springy = L.pads.filter(p => p.kind && p.kind !== 'trampWall' && p.kind !== 'trampCeil').length >= 3;
@@ -394,6 +395,11 @@ function anchorTwists(L, idx) {
     if (pat === 0) {
       // vertical bob: changes the catch height rhythm
       A[k].move = { dx: 0, dy: (gentle ? 42 : 55) + (idx % 3) * 12, period: Math.max(2.6, 3.6 - idx * 0.03), phase: k * 1.31 };
+    } else if (pat === 2 && early) {
+      // levels 10-14: gentle side-to-side slide along the route
+      A[k].move = { dx: 45 + (idx % 2) * 10, dy: 0, period: 4.8, phase: k * 0.87 };
+    } else if (pat === 3 && early) {
+      A[k].move = { dx: 45 + (idx % 2) * 10, dy: 0, period: 4.8, phase: k * 0.87 };
     } else if (pat === 2 && idx >= 16 && !gentle) {
       // horizontal drift along the route (only where springs catch a miss)
       A[k].move = { dx: 70 + (idx % 2) * 20, dy: 0, period: 4.6, phase: k * 0.87 };
