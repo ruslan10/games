@@ -203,7 +203,10 @@ function praise(){
   let i=rand(0,PRAISES.length-1);if(PRAISES.length>1&&i===lastPraise)i=(i+1)%PRAISES.length;lastPraise=i;
   pendingPraise={clip:PRAISES[i],screen,task:taskSeq,x:explainParts()};clearTimeout(praiseTimer);
   praiseTimer=setTimeout(()=>{praiseTimer=0;const p=pendingPraise;pendingPraise=null;
-    if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){voicePlay([p.clip,...(p.x||[])]);praiseTask=p.task}},80)}
+    if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){
+      let x=p.x;const fresh=explainParts();
+      if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null; // board undone or task moved inside the pending window: no stale answer explanation
+      voicePlay([p.clip,...(x||[])]);praiseTask=p.task}},80)}
 function voiceSync(){
   const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
   const parts=voiceParts(),key=parts?parts.join('|'):null,task=taskSeq;

@@ -258,6 +258,19 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await sleep(150);
   console.log('PASS explanation: no stale explanation after board change');
 
+  // board undo inside the 80ms pending window drops the captured explanation (praise may still play)
+  await p.locator('#exit').click(); // back to the table picker
+  await p.locator('[data-table="2"]').click(); // fresh groups board
+  await sleep(150);
+  mark=(await plays(p)).length;
+  await p.evaluate(()=>{for(let i=0;i<6;i++)document.getElementById('candyBowl').click();document.querySelector('.cslot.full').click()});
+  await sleep(600);
+  seq=names((await plays(p)).slice(mark));
+  assert(!seq.some(u=>/^e_/.test(u)||u==='c2'),'board undo inside the pending window drops the captured explanation');
+  await p.locator('#candyBowl').click(); // refill so candyNext is enabled
+  await sleep(150);
+  console.log('PASS explanation: undo inside the pending window drops the explanation');
+
   // array board completed and advanced inside the 80ms pending window: explanation dropped, praise still chains
   await p.locator('#candyNext').click(); // array step
   await sleep(150);
