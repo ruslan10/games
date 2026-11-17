@@ -140,7 +140,7 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
   if(p.type==='flight')for(const s of [-1,1])b(list,s*.32,1.08,.05,.42,.07,.2,'#fff8dc',s*.35);
   const g=mesh(list,objects,false);powers.push({p,g});}
  const f=[];for(const x of [-4.1,4.1])cyl(f,x,2.9,-l.length,.07,5.8,'#f4e1b7');for(let i=0;i<12;i++)for(let j=0;j<2;j++)b(f,-3.85+i*.7,5.1+j*.55,-l.length,.7,.55,.06,(i+j)%2?'#315c66':'#fff3da');finishMesh=mesh(f,objects,false);}
- let animTime=0,smoothedX=0,lean=0,duck=0,runPhase=0,lastDistance=0,width=390,height=844;
+ let animTime=0,elev=0,smoothedX=0,lean=0,duck=0,runPhase=0,lastDistance=0,width=390,height=844;
  const stats={frames:0,frameMs:[],calls:0,triangles:0,dpr:renderer.getPixelRatio(),quality:'auto'};let slowFrames=0;
  function sampleFrame(dt,mode){if(mode!=='playing'||dt<=0)return;stats.frameMs.push(dt*1000);if(stats.frameMs.length>600)stats.frameMs.shift();if(stats.frames>45&&dt>.035)slowFrames++;else slowFrames=Math.max(0,slowFrames-1);if(slowFrames>25&&renderer.getPixelRatio()>1){renderer.setPixelRatio(1);renderer.setSize(width,height,false);stats.dpr=1;stats.quality='adaptive-native';slowFrames=0;}}
  function resize(){width=innerWidth;height=innerHeight;renderer.setSize(width,height,false);camera.aspect=width/height;camera.fov=width>height?61:56;camera.updateProjectionMatrix();}
@@ -167,7 +167,7 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  pogo.visible=!!state&&state.vehicle==='pogo';pogo.position.set(x,y-.35,0);
  zipHandle.visible=!!state?.zip;zipHandle.position.set(x,4.75,.05);
  shadow.position.x=x;shadow.position.y=(state?.ground||0)+.035;shadow.scale.setScalar(Math.max(.5,1-y*.13));shadow.material.opacity=Math.max(.2,1-y*.2);
- smoothedX+=(x*.88-smoothedX)*(1-Math.exp(-dt*18));const lift=Math.min(2,y*.6);camera.position.set(smoothedX,(width>height?4.0:3.4)+lift,width>height?7.4:6.3);camera.lookAt(smoothedX*.85,.85+lift,width>height?-16:-18);
+ smoothedX+=(x*.88-smoothedX)*(1-Math.exp(-dt*18));const lift=Math.min(2,y*.6);const elevTarget=state&&playing?Math.min(1,Math.max(0,(y-.5)/2.2)):0;elev+=(elevTarget-elev)*(1-Math.exp(-dt*(elevTarget>elev?9:5)));const ee=elev*elev*(3-2*elev);camera.position.set(smoothedX,(width>height?4.0:3.4)+lift+ee*(width>height?1.1:1.9),(width>height?7.4:6.3)+ee*(width>height?.6:1.5));camera.lookAt(smoothedX*.85,.85+lift+ee*(width>height?1.3:2.5),width>height?-16-ee*6:-18-ee*10);
  renderer.render(scene,camera);stats.calls=renderer.info.render.calls;stats.triangles=renderer.info.render.triangles;stats.frames++;
  }
  resize();addEventListener('resize',resize);
