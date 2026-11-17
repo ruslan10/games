@@ -1,7 +1,7 @@
 // Run after editing game code and after rebuilding Runner. No dependencies.
-import {readFileSync, writeFileSync} from 'node:fs';
+import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-const pages = ['index.html', 'stickman/index.html', 'runner/index.html'];
+const pages = ['index.html', 'stickman/index.html', 'runner/index.html', 'monster-lab/index.html'];
 const normalize = html => html.replace(/(name="games-release" content=")[^"]+/, '$1BUILD')
   .replace(/([?&])v=[a-f0-9]{16}/g, '');
 const assets = new Set(['update.js']);
@@ -11,6 +11,7 @@ for (const page of pages) {
     assets.add(new URL(m[1], 'file:///' + prefix).pathname.slice(1));
   }
 }
+for (const name of readdirSync('monster-lab/assets')) if (/\.(?:js|webp|ttf)$/.test(name)) assets.add('monster-lab/assets/' + name);
 const hash = createHash('sha256');
 for (const name of [...assets].sort()) hash.update(name).update(readFileSync(name));
 for (const name of pages) hash.update(name).update(normalize(readFileSync(name, 'utf8')));
