@@ -88,7 +88,7 @@ function bindCandy(){const t=tm,n=t.n,mode=t.step==='groups'?'bags':'rows',state
  const slotEl=(g,s2)=>board.querySelector(`.cslot[data-g="${g}"][data-s="${s2}"]`);
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const center=el=>{const r=el.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]};
- function refresh(){const c=document.getElementById('candyCounter');if(c)c.innerHTML=candyCounter(placed(),total);const ok=allFull(),fb=document.getElementById('candyFeedback'),nx=document.getElementById('candyNext');if(nx)nx.disabled=!ok;if(fb){fb.className='feedback '+(ok?'success':'');fb.innerHTML=ok?candyDoneHTML(t,mode):''}}
+ function refresh(){const c=document.getElementById('candyCounter');if(c)c.innerHTML=candyCounter(placed(),total);const ok=allFull(),fb=document.getElementById('candyFeedback'),nx=document.getElementById('candyNext');if(nx)nx.disabled=!ok;if(fb){fb.className='feedback '+(ok?'success':'');fb.innerHTML=ok?candyDoneHTML(t,mode):''}voiceBtnState()}
  function groupDone(g){if(!state[g].every(Boolean))return;const wrap=board.querySelector(`[data-bag="${g}"]`);if(wrap&&!wrap.classList.contains('done')){wrap.classList.add('done');sounds()}}
  function land(g,s2,el,pop=true){el.classList.remove('flying');el.classList.add('full');el.innerHTML=slotCandy(g,s2,pop);el.removeAttribute('aria-hidden');el.removeAttribute('tabindex');el.setAttribute('aria-label','הסרת סוכרייה');groupDone(g);if(allFull()){window.Lab3D?.react('success');confetti();sounds();if(!t.boardPraised){t.boardPraised=1;praise()}setTimeout(()=>document.getElementById('candyNext')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'end'}),120)}refresh()}
  function flyTo(g,s2){const el=slotEl(g,s2);if(!el||el.classList.contains('flying')||el.classList.contains('full'))return;state[g][s2]=true;t.candyTouched=true;board.classList.remove('first');el.classList.add('flying');
@@ -146,7 +146,7 @@ const VQ=(document.currentScript?.src.match(/[?&]v=([a-f0-9]+)/)||[])[1]||'';
 const vaud=new Audio();vaud.preload='auto';
 let vtok=0,vUnlocked=false,vKey=null,vTask=-1,vParts=null,vPlaying=false,vBlocked=false;
 const vUrl=p=>'audio/'+p+'.mp3'+(VQ?'?v='+VQ:'');
-const vNum=n=>Number.isInteger(n)&&n>=1&&n<=99?'n'+n:null;
+const vNum=n=>Number.isInteger(n)&&n>=1&&n<=100?'n'+n:null;
 const vMult=(a,b,first)=>['mult_q_pre',vNum(a),'mult_q_mid',vNum(b),'mult_q_post'];
 function voiceParts(){
   if(screen==='home')return ['home'];
@@ -170,7 +170,7 @@ function voiceParts(){
     return [q.kind==='build'?'frac_build':'frac_compare']}
   return null}
 function voiceStop(){vtok++;try{vaud.pause()}catch{};vPlaying=false;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;praiseTask=-1;voiceBtnState()}
-function voiceBtnState(){const b=document.getElementById('voiceSay');if(!b)return;b.classList.toggle('playing',vPlaying);b.classList.toggle('attn',vBlocked&&!vPlaying);b.textContent=vPlaying?'⏹':'🔊';b.setAttribute('aria-label',vPlaying?'עצירת ההקראה':'שמיעה חוזרת של ההוראה')}
+function voiceBtnState(){const b=document.getElementById('voiceSay');if(!b)return;b.classList.toggle('playing',vPlaying);b.classList.toggle('attn',vBlocked&&!vPlaying);b.textContent=vPlaying?'⏹':'🔊';b.setAttribute('aria-label',vPlaying?'עצירת ההקראה':explainParts()?'שמיעה חוזרת של ההסבר':'שמיעה חוזרת של ההוראה')}
 function voicePlay(parts){
   voiceStop();const list=(parts||[]).filter(Boolean);if(!list.length)return;
   const tok=vtok,urls=list.map(vUrl);let i=0;vPlaying=true;vBlocked=false;voiceBtnState();
@@ -178,22 +178,43 @@ function voicePlay(parts){
     vaud.src=urls[i++];const p=vaud.play();if(p&&p.catch)p.catch(err=>{if(tok!==vtok)return;vPlaying=false;vBlocked=err&&err.name==='NotAllowedError';voiceBtnState()})};
   vaud.onended=step;vaud.onerror=()=>{if(tok!==vtok)return;vPlaying=false;voiceBtnState()};
   step()}
+// ===== Spoken explanation of a completed exercise (times room): chained after praise, replayable, never reveals an unanswered task =====
+const cNum=n=>n===2?'c2':vNum(n); // construct form before סוכריות: שתי vs שתיים
+function repAdd(k,m){const r=[];for(let i=0;i<k;i++){if(i)r.push('e_plus');r.push(vNum(m))}return r}
+function explainParts(){
+  if(screen!=='times'||!tm)return null;
+  const t=tm,n=t.n;
+  if((t.step==='groups'||t.step==='array')&&t.boardPraised){
+    const st=t.step==='groups'?t.bags:t.rows;
+    if(!st.every(b=>b.every(Boolean)))return null; // board no longer complete: no stale explanation
+    const pre=t.step==='groups'?['e_bags_pre']:['e_rows_alt','e_rows_pre'];
+    const base=[...pre,cNum(n),'e_candies',...repAdd(3,n),'e_eq',vNum(3*n),'e_so3',vNum(n),'e_eq',vNum(3*n)];
+    return t.step==='groups'?[...base,'e_meaning']:base}
+  if(t.step==='guided'&&t.gDone){const k=t.gks[t.gq];return [vNum(k),'e_kful',vNum(n),'e_eq',vNum(k*n),'e_ki',...repAdd(k,n),'e_eq',vNum(k*n)]}
+  if(t.step==='practice'&&t.ftype==='success'&&!t.pDone){const q=t.pQs[t.pq];if(!q)return null;
+    if(q.a===1)return [vNum(1),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_one_group',vNum(q.b),'e_is',vNum(q.b)]; // one group of b is b, no untaught commutativity
+    return [vNum(q.a),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_ki',...repAdd(q.a,q.b),'e_eq',vNum(q.ans)]}
+  return null}
 // ===== Spoken encouragement on success: one random short clip, sequenced before any next instruction =====
 const PRAISES=['praise1','praise2','praise3','praise4','praise5','praise6','praise7','praise8'];
 let lastPraise=-1,pendingPraise=null,praiseTimer=0,praiseTask=-1;
 function praise(){
   if(!save.voice||!vUnlocked||document.hidden)return;
   let i=rand(0,PRAISES.length-1);if(PRAISES.length>1&&i===lastPraise)i=(i+1)%PRAISES.length;lastPraise=i;
-  pendingPraise={clip:PRAISES[i],screen,task:taskSeq};clearTimeout(praiseTimer);
+  pendingPraise={clip:PRAISES[i],screen,task:taskSeq,x:explainParts()};clearTimeout(praiseTimer);
   praiseTimer=setTimeout(()=>{praiseTimer=0;const p=pendingPraise;pendingPraise=null;
-    if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){voicePlay([p.clip]);praiseTask=p.task}},80)}
+    if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){
+      let x=p.x;const fresh=explainParts();
+      if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null; // board undone or task moved inside the pending window: no stale answer explanation
+      voicePlay([p.clip,...(x||[])]);praiseTask=p.task}},80)}
 function voiceSync(){
   const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
   const parts=voiceParts(),key=parts?parts.join('|'):null,task=taskSeq;
+  voiceBtnState(); // completed/unanswered state changes the replay label even without an audio event
   const host=document.querySelector('.top-actions')||document.querySelector('header');
   if(host&&parts&&!document.getElementById('voiceSay')){
     host.insertAdjacentHTML('afterbegin',`<button class="icon ghost voice-btn" id="voiceSay" type="button">🔊</button>`);
-    document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;vTask=taskSeq;voicePlay(p)};
+    document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;vTask=taskSeq;voicePlay(explainParts()||p)}; // completed state replays the explanation; unanswered state replays the instruction only
     voiceBtnState()}
   if(key===vKey&&task===vTask)return;
   vKey=key;vTask=task;
@@ -209,6 +230,6 @@ document.addEventListener('keydown',voiceUnlock,{capture:true});
 new MutationObserver(()=>voiceSync()).observe(app,{childList:true});
 new MutationObserver(()=>{if(document.querySelector('.overlay'))voiceStop()}).observe(document.body,{childList:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)voiceStop()});
-window.MonsterLabVoice={parts:voiceParts,stop:voiceStop,praise,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,src:vaud.src,pending:pendingPraise?pendingPraise.clip:null})};
+window.MonsterLabVoice={parts:voiceParts,explain:explainParts,stop:voiceStop,praise,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,src:vaud.src,pending:pendingPraise?pendingPraise.clip:null,pendingX:pendingPraise&&pendingPraise.x?pendingPraise.x.length:0})};
 home();
 })();

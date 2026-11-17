@@ -1,4 +1,4 @@
-// QA for spoken Hebrew encouragement on success (praise clips).
+// QA for spoken Hebrew encouragement on success (praise clips) and spoken exercise explanations (times room).
 // Run from repository root: NODE_PATH=/downloads/qa-env/node_modules node monster-lab/qa-voice.cjs
 const {chromium}=require('playwright'),http=require('http'),fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..');
@@ -10,7 +10,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let browser=await chromium.launch({headless:true,executablePath:'/opt/google/chrome/chrome',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
   let p=await browser.newPage({viewport:{width:412,height:915}});
   let errors=[];p.on('pageerror',e=>errors.push(e.message));
-  await p.addInitScript(()=>{window.__plays=[];const orig=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.__plays.push(this.src||'');return orig.call(this)}});
+  await p.addInitScript(()=>{window.__plays=[];const orig=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){window.__plays.push(this.src||'');this.playbackRate=3;return orig.call(this)}}); // 3x playback keeps long explanation chains fast; orchestration timing unaffected
   await p.route('**/characters.js*',route=>route.fulfill({body:'',contentType:'text/javascript'}));
   await p.emulateMedia({reducedMotion:'reduce'});
   let base=`http://127.0.0.1:${server.address().port}/monster-lab/`;
@@ -200,6 +200,163 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let tail=pl.slice(-2).map(u=>u.split('/').pop().split('?')[0]);
   assert(tail[tail.length-1]==='summary.mp3','practice summary narration is last, praise not stacked after it');
   console.log('PASS practice: praise on success, summary narration clean');
+
+  // --- Spoken explanations: chained after praise on completed times-room tasks, replayable, cancellable ---
+  const names=u=>u.map(x=>x.split('/').pop().split('?')[0].replace('.mp3',''));
+  const nm=x=>'n'+x;
+  const notPlaying=()=>p.waitForFunction(()=>!MonsterLabVoice.state().playing,null,{timeout:60000});
+  for(const c of ['e_bags_pre','e_rows_alt','e_rows_pre','e_candies','e_plus','e_eq','e_so3','e_kful','e_ki','e_one_group','e_is','e_meaning','c2','n100']){
+    assert.equal(await p.evaluate(async u=>{const r=await fetch(u);return r.status},`audio/${c}.mp3`),200,'clip exists: '+c)}
+
+  // groups board (3 bags of 2): exact chain, resilient to a mid-chain re-render
+  await p.locator('[data-t="again"]').click();
+  let tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  assert.equal(tms2.step,'groups');
+  let mark=(await plays(p)).length;
+  for(let i=0;i<6;i++)await p.locator('#candyBowl').click();
+  await p.waitForFunction(()=>/praise\d/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await p.locator('.cslot.full').first().click(); // re-render mid-chain: must not cut or restart playback
+  await p.waitForFunction(()=>MonsterLabVoice.state().src.includes('e_meaning'),null,{timeout:60000});
+  let seq=names((await plays(p)).slice(mark));
+  let xi=seq.findIndex(u=>/^praise\d$/.test(u));
+  assert(xi>=0,'praise starts the groups completion chain');
+  assert.deepEqual(seq.slice(xi+1),['e_bags_pre','c2','e_candies','n2','e_plus','n2','e_plus','n2','e_eq','n6','e_so3','n2','e_eq','n6','e_meaning'],'groups explanation clip sequence (3 bags of 2)');
+  assert(!seq.includes('t_groups_pre'),'mid-chain re-render did not restart the instruction');
+  await notPlaying();
+  let stx=await p.evaluate(()=>MonsterLabVoice.state());
+  assert.equal(stx.pending,null);assert.equal(stx.pendingX,0,'nothing pending after the chain');
+  console.log('PASS explanation: groups chain after praise, resilient to mid-chain re-render');
+
+  // refill dedup, then replay on the completed board speaks the explanation
+  let pcx=await praiseCount(p);
+  await p.locator('#candyBowl').click();
+  await sleep(400);
+  assert.equal(await praiseCount(p),pcx,'no repeated praise/explanation on refill of the same board');
+  mark=(await plays(p)).length;
+  await p.locator('#voiceSay').click();
+  await p.waitForFunction(()=>/e_bags_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  seq=names((await plays(p)).slice(mark));
+  assert.equal(seq[0],'e_bags_pre','replay on the completed board replays the explanation');
+  assert(!seq.includes('t_groups_pre'),'completed replay does not restart the instruction');
+  await p.locator('#voiceSay').click(); // stop
+  await notPlaying();
+  assert.match(await p.locator('#voiceSay').getAttribute('aria-label'),/ההסבר/,'completed-state replay label names the explanation');
+  console.log('PASS explanation: replay on completed state, refill dedup');
+
+  // board incomplete again: replay speaks the instruction, not a stale explanation
+  await p.locator('.cslot.full').first().click();
+  await sleep(250);
+  assert.match(await p.locator('#voiceSay').getAttribute('aria-label'),/ההוראה/,'incomplete-state replay label names the instruction');
+  mark=(await plays(p)).length;
+  await p.locator('#voiceSay').click();
+  await p.waitForFunction(()=>/t_groups_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  seq=names((await plays(p)).slice(mark));
+  assert.equal(seq[0],'t_groups_pre','incomplete board replays the instruction, not a stale explanation');
+  await p.locator('#voiceSay').click(); // stop
+  await notPlaying();
+  await p.locator('#candyBowl').click(); // refill so candyNext is enabled
+  await sleep(150);
+  console.log('PASS explanation: no stale explanation after board change');
+
+  // board undo inside the 80ms pending window drops the captured explanation (praise may still play)
+  await p.locator('#exit').click(); // back to the table picker
+  await p.locator('[data-table="2"]').click(); // fresh groups board
+  await sleep(150);
+  mark=(await plays(p)).length;
+  await p.evaluate(()=>{for(let i=0;i<6;i++)document.getElementById('candyBowl').click();document.querySelector('.cslot.full').click()});
+  await sleep(600);
+  seq=names((await plays(p)).slice(mark));
+  assert(!seq.some(u=>/^e_/.test(u)||u==='c2'),'board undo inside the pending window drops the captured explanation');
+  await p.locator('#candyBowl').click(); // refill so candyNext is enabled
+  await sleep(150);
+  console.log('PASS explanation: undo inside the pending window drops the explanation');
+
+  // array board completed and advanced inside the 80ms pending window: explanation dropped, praise still chains
+  await p.locator('#candyNext').click(); // array step
+  await sleep(150);
+  mark=(await plays(p)).length;
+  await p.evaluate(()=>{for(let i=0;i<6;i++)document.getElementById('candyBowl').click();document.getElementById('candyNext').click()});
+  await p.waitForFunction(()=>/t_skip_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await sleep(600);
+  seq=names((await plays(p)).slice(mark));
+  assert(!seq.some(u=>/^e_/.test(u)||u==='c2'),'advancing inside the pending window drops the explanation');
+  let pi2=seq.findIndex(u=>/^praise\d$/.test(u)),si=seq.findIndex(u=>u==='t_skip_pre');
+  assert(pi2>=0&&si===pi2+1,'praise still chains immediately before the next-step instruction');
+  console.log('PASS explanation: pending explanation dropped on advance, praise chaining preserved');
+
+  // guided success: equation then repeated addition of k copies of n, matching the shown k×n order
+  tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  assert.equal(tms2.step,'skip');
+  while(tms2.skip<10){await p.locator(`[data-t="skip:${(tms2.skip+1)*tms2.n}"]`).click();await sleep(40);tms2=await p.evaluate(()=>MonsterLab.getTimes())}
+  await p.locator('[data-t="next"]').click(); // guided step
+  tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  let k=tms2.gks[tms2.gq],n=tms2.n;
+  await p.waitForFunction(()=>/mult_q_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  mark=(await plays(p)).length;
+  await p.locator(`[data-t="gans:${k*n}"]`).click();
+  await p.waitForFunction(()=>/praise\d/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  seq=names((await plays(p)).slice(mark));
+  let expected=[nm(k),'e_kful',nm(n),'e_eq',nm(k*n),'e_ki'];
+  for(let i=0;i<k;i++){if(i)expected.push('e_plus');expected.push(nm(n))}
+  expected.push('e_eq',nm(k*n));
+  xi=seq.findIndex(u=>/^praise\d$/.test(u));
+  assert(xi>=0,'praise starts the guided chain');
+  assert.deepEqual(seq.slice(xi+1),expected,'guided explanation: equation then '+k+' copies of '+n);
+  console.log('PASS explanation: guided chain matches the shown equation order');
+
+  // unanswered guided question: replay speaks the instruction only, never the answer
+  await p.locator('[data-t="gnext"]').click();
+  await p.waitForFunction(()=>/mult_q_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  mark=(await plays(p)).length;
+  await p.locator('#voiceSay').click();
+  await p.waitForFunction(()=>/mult_q_pre/.test(MonsterLabVoice.state().src)&&MonsterLabVoice.state().playing,null,{timeout:6000});
+  seq=names((await plays(p)).slice(mark));
+  assert.equal(seq[0],'mult_q_pre','unanswered replay speaks the instruction');
+  assert(!seq.some(u=>/^e_/.test(u)||u==='c2'),'unanswered replay reveals nothing of the answer');
+  await p.locator('#voiceSay').click(); // stop
+  await notPlaying();
+  console.log('PASS explanation: unanswered state never reveals the answer');
+
+  // practice success: explanation matches the shown a×b equation (e_one note when a===1)
+  tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  await p.locator(`[data-t="gans:${tms2.gks[tms2.gq]*tms2.n}"]`).click();
+  await p.waitForFunction(()=>/praise\d/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  await p.locator('[data-t="gnext"]').click(); // gq=2
+  tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  await p.locator(`[data-t="gans:${tms2.gks[tms2.gq]*tms2.n}"]`).click();
+  await p.waitForFunction(()=>/praise\d/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  await p.locator('[data-t="gnext"]').click(); // done step
+  await p.locator('[data-t="practice"]').click();
+  await p.waitForFunction(()=>/mult_q_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  tms2=await p.evaluate(()=>MonsterLab.getTimes());
+  let pq1=tms2.pQs[tms2.pq];
+  mark=(await plays(p)).length;
+  await p.locator(`[data-t="pans:${pq1.ans}"]`).click();
+  await p.waitForFunction(()=>/praise\d/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+  await notPlaying();
+  seq=names((await plays(p)).slice(mark));
+  let expected2=[nm(pq1.a),'e_kful',nm(pq1.b),'e_eq',nm(pq1.ans)];
+  if(pq1.a===1)expected2.push('e_one_group',nm(pq1.b),'e_is',nm(pq1.b));
+  else{expected2.push('e_ki');for(let i=0;i<pq1.a;i++){if(i)expected2.push('e_plus');expected2.push(nm(pq1.b))}expected2.push('e_eq',nm(pq1.ans))}
+  xi=seq.findIndex(u=>/^praise\d$/.test(u));
+  assert(xi>=0,'praise starts the practice chain');
+  assert.deepEqual(seq.slice(xi+1),expected2,'practice explanation matches '+pq1.a+'×'+pq1.b);
+  console.log('PASS explanation: practice chain matches the shown equation');
+
+  // stop inside the pending window cancels the whole chain, start path intact
+  pcx=await praiseCount(p);
+  await p.evaluate(()=>{MonsterLabVoice.praise();MonsterLabVoice.stop()});
+  await sleep(300);
+  assert.equal(await praiseCount(p),pcx,'stop inside the pending window cancels praise+explanation');
+  stx=await p.evaluate(()=>MonsterLabVoice.state());
+  assert.equal(stx.pending,null);assert.equal(stx.pendingX,0,'pending explanation cleared by stop');
+  console.log('PASS explanation: stop cancels the pending chain');
 
   // --- Voice toggle off: no praise at all ---
   await p.evaluate(()=>{localStorage.setItem('monster-lab:v1',JSON.stringify({xp:0,solved:0,rounds:0,band:0,sound:false,voice:false,medals:{},times:{learned:{},stars:{}}}))});
