@@ -103,7 +103,7 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  function sign(text,bg='#176b70',w=2.2,h=1.0){const c=document.createElement('canvas');c.width=384;c.height=192;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(4,4,376,184,28);ctx.fill();ctx.strokeStyle='#fff0d5';ctx.lineWidth=8;ctx.stroke();ctx.fillStyle='#fff7df';ctx.font='bold 65px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.direction='rtl';ctx.fillText(text,192,102,350);const map=new T.CanvasTexture(c),sp=new T.Sprite(new T.SpriteMaterial({map,depthTest:true}));sp.scale.set(w,h,1);return sp;}
  const ride=new T.Group();{const a=[];rb(a,0,.13,0,.7,.16,1.25,'#ec8e3e');for(const xx of [-.38,.38])for(const zz of [-.4,.4])ball(a,xx,.08,zz,.12,.12,.12,'#31516c');mesh(a,ride,true);}scene.add(ride);ride.visible=false;
  const pogo=new T.Group();{const a=[];cyl(a,0,.35,0,.055,.75,'#65d8ca');for(let i=0;i<7;i++){const ring=new T.Mesh(new T.TorusGeometry(.13,.025,5,12),new T.MeshStandardMaterial({color:'#ffcc61'}));ring.rotation.x=Math.PI/2;ring.position.y=.05+i*.055;pogo.add(ring);}b(a,0,.52,0,.68,.06,.2,'#d58bf2');mesh(a,pogo,true);}scene.add(pogo);pogo.visible=false;
- const zipHandle=new T.Mesh(new T.CylinderGeometry(.025,.025,1.15,6),new T.MeshStandardMaterial({color:'#f5cb72'}));scene.add(zipHandle);zipHandle.visible=false;
+ const zipHandle=new T.Group();{const a=[];cyl(a,0,0,0,.035,.5,'#6a5140');rb(a,0,-.25,.08,1.0,.075,.09,'#f5cb72');mesh(a,zipHandle,true);}scene.add(zipHandle);zipHandle.visible=false;
  // The chaser: a stocky dark street dog that looms behind the runner after a stumble.
  const chaser=new T.Group();{const c=[];ball(c,0,.62,0,.42,.4,.62,'#3c414d');ball(c,0,.95,-.5,.3,.28,.3,'#454b58');ball(c,0,.88,-.78,.14,.12,.2,'#2c313b');for(const s of [-1,1]){part(c,'cone',s*.16,1.18,-.5,.1,.22,.1,'#2c313b',-.2,0,s*.15);}for(const s of [-1,1]){cyl(c,s*.2,.3,.28,.09,.6,'#333845');cyl(c,s*.2,.3,-.3,.09,.6,'#333845');}part(c,'cone',0,.78,.62,.08,.4,.08,'#333845',1.1,0,0);mesh(c,chaser,true);const eyeM=new T.MeshBasicMaterial({color:'#ff453a',fog:false});for(const s of [-1,1]){const e=new T.Mesh(new T.SphereGeometry(.05,8,6),eyeM);e.position.set(s*.12,1.0,-.78);chaser.add(e);}}chaser.visible=false;scene.add(chaser);
  const coinParts=[];
@@ -160,12 +160,12 @@ const human=id==='courier',fox=id==='fox',cat=id==='cat',bunny=id==='bunny',pand
  const targetLean=state?(state.lane*2.6-x)*-.12:0;lean+=(targetLean-lean)*(1-Math.exp(-dt*14));
  hero.position.set(x,y+(playing||menu?Math.sin(runPhase*2)*.024+.025:0),0);hero.rotation.set(-duck*.85-(state?.trickRotation||0),Math.sin(runPhase)*.025,lean);hero.scale.set(1.16,1.16*(1-duck*.38),1.16);
  rig.body.rotation.x=-.10+(air?-.06:0);rig.body.rotation.y=stride*.075;rig.head.rotation.y=-stride*.045;rig.head.rotation.x=air?-.05:Math.sin(runPhase*2)*.02;
- for(const l of limbs){if(l.kind==='leg'){const a=runPhase+(l.side>0?Math.PI:0);l.g.rotation.x=air?-.45*l.side:Math.sin(a)*.7;l.knee.rotation.x=air?-.85:-Math.max(0,-Math.sin(a))*1.15-.08;l.foot.rotation.x=air?-.3:-Math.max(0,Math.sin(a))*.26;}else{l.g.rotation.x=air?-.65:-stride*l.side*.58;l.g.rotation.z=l.side*-.08;l.knee.rotation.x=.88+Math.max(0,-stride*l.side)*.3;}}
+ for(const l of limbs){if(l.kind==='leg'){const a=runPhase+(l.side>0?Math.PI:0);l.g.rotation.x=air?-.45*l.side:Math.sin(a)*.7;l.knee.rotation.x=air?-.85:-Math.max(0,-Math.sin(a))*1.15-.08;l.foot.rotation.x=air?-.3:-Math.max(0,Math.sin(a))*.26;}else{l.g.rotation.x=state?.zip?3.0:air?-.65:-stride*l.side*.58;l.g.rotation.z=l.side*-.08;l.knee.rotation.x=(state?.zip?.12:.88)+Math.max(0,-stride*l.side)*.3;}}
  if(tail){tail.rotation.z=Math.sin(runPhase*.55)*.19;tail.rotation.x=.65+Math.sin(runPhase)*.07;}
  bubble.visible=!!state?.shield;hero.visible=!(state?.invincible>0&&Math.floor(animTime*14)%2);
  ride.visible=!!state&&state.vehicle==='board';ride.position.set(x,y+.02,0);ride.rotation.z=lean;
  pogo.visible=!!state&&state.vehicle==='pogo';pogo.position.set(x,y-.35,0);
- zipHandle.visible=!!state?.zip;zipHandle.position.set(x,4.43,0);
+ zipHandle.visible=!!state?.zip;zipHandle.position.set(x,4.75,.05);
  shadow.position.x=x;shadow.position.y=(state?.ground||0)+.035;shadow.scale.setScalar(Math.max(.5,1-y*.13));shadow.material.opacity=Math.max(.2,1-y*.2);
  smoothedX+=(x*.88-smoothedX)*(1-Math.exp(-dt*18));const lift=Math.min(2,y*.6);camera.position.set(smoothedX,(width>height?4.0:3.4)+lift,width>height?7.4:6.3);camera.lookAt(smoothedX*.85,.85+lift,width>height?-16:-18);
  renderer.render(scene,camera);stats.calls=renderer.info.render.calls;stats.triangles=renderer.info.render.triangles;stats.frames++;
