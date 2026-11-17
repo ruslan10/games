@@ -158,8 +158,12 @@ const store = {
   get dailyLast() { try { return localStorage.getItem('sh_daily_last') || ''; } catch (e) { return ''; } },
   set dailyLast(v) { try { localStorage.setItem('sh_daily_last', v); } catch (e) {} },
   ghost(key) { try { const s = localStorage.getItem('sh_ghost_' + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
-  setGhost(key, data) {
-    try { localStorage.setItem('sh_ghost_' + key, JSON.stringify(data)); }
+  ghostTime(key) { try { return +(localStorage.getItem('sh_ghost_time_' + key) || 0); } catch (e) { return 0; } },
+  setGhost(key, data, time) {
+    try {
+      localStorage.setItem('sh_ghost_' + key, JSON.stringify(data));
+      if (time) localStorage.setItem('sh_ghost_time_' + key, time);
+    }
     catch (e) { /* storage full: drop the oldest ghosts */
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -167,6 +171,7 @@ const store = {
           if (k && k.startsWith('sh_ghost_')) localStorage.removeItem(k);
         }
         localStorage.setItem('sh_ghost_' + key, JSON.stringify(data));
+        if (time) localStorage.setItem('sh_ghost_time_' + key, time);
       } catch (e2) { /* give up on the ghost, keep the game */ }
     }
   },
@@ -663,7 +668,6 @@ function win() {
     game.newBest = !prevT || t < prevT;
     if (game.newBest) {
       store.setDailyTime(key, Math.round(t * 10) / 10);
-      if (game.ghostRec && game.ghostRec.length > 10) store.setGhost(ghostKey(), game.ghostRec);
     }
     game.lastTime = Math.round(t * 10) / 10;
   } else {
@@ -671,9 +675,18 @@ function win() {
     game.newBest = !prevBest || t < prevBest;
     if (game.newBest) {
       store.setBest(game.levelIndex, Math.round(t * 10) / 10);
-      if (game.ghostRec && game.ghostRec.length > 10) store.setGhost(ghostKey(), game.ghostRec);
     }
     game.lastTime = Math.round(t * 10) / 10;
+  }
+  // Old best times predate replay recording. Keep those times, but record the
+  // fastest available completed replay even when it cannot beat that old time.
+  if (game.ghostRec && game.ghostRec.length > 10) {
+    const key = ghostKey();
+    const prior = game.ghostData;
+    const priorTime = store.ghostTime(key) || (prior ? prior.length * 0.05 : 0);
+    if (!prior || prior.length < 10 || t < priorTime) {
+      store.setGhost(key, game.ghostRec, t);
+    }
   }
   // level bonuses: finishing, plus a big one for collecting every fruit
   game.bonusPts = 25 + (game.taken >= game.fruits.length && game.fruits.length ? 100 : 0);
@@ -691,7 +704,7 @@ function win() {
     game.newPtsBest = game.runPts > store.pts(game.levelIndex);
     if (game.newPtsBest) store.setPts(game.levelIndex, game.runPts);
     if (game.levelIndex >= LEVELS.length - 1) store.done = true;
-    store.level = Math.min(game.levelIndex + 2, LEVELS.length);
+    store.level = Math.max(store.level, Math.min(game.levelIndex + 2, LEVELS.length));
     store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
   }
   game.world.setHeld(false);
