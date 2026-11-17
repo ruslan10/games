@@ -111,7 +111,7 @@ const ui = {
   levelsel: $('levelsel'), levelGrid: $('level-grid'),
   btnPlay: $('btn-play'), btnGo: $('btn-go'), btnNext: $('btn-next'),
   btnPause: $('btn-pause'), btnResume: $('btn-resume'), btnMute: $('btn-mute'),
-  btnIntroLevels: $('btn-intro-levels'), btnIntroChars: $('btn-intro-chars'),
+  btnIntroHome: $('btn-intro-home'), btnIntroLevels: $('btn-intro-levels'), btnIntroChars: $('btn-intro-chars'),
   btnRestart: $('btn-restart'), btnLevels: $('btn-levels'),
   btnLevelsClose: $('btn-levels-close'), btnPauseLevels: $('btn-pause-levels'),
   menuLevel: $('menu-level'), introLevel: $('intro-level'), introName: $('intro-name'),
@@ -549,6 +549,7 @@ function setState(s) {
   if (s !== 'levelsel') ui.levelsel.classList.remove('show');
   ui.charsel.classList.remove('show');
   ui.btnPause.style.display = (s === 'play') ? 'flex' : 'none';
+  ui.btnIntroHome.style.display = (s === 'intro') ? 'flex' : 'none';
   ui.btnIntroLevels.style.display = (s === 'intro') ? 'flex' : 'none';
   ui.btnIntroChars.style.display = (s === 'intro') ? 'flex' : 'none';
   if (s === 'menu') {
@@ -924,6 +925,7 @@ $('btn-levels-x').addEventListener('click', () => { ui.levelsel.classList.remove
   if (e.target === ov) { ov.classList.remove('show'); sfx.click(); }
 }));
 ui.btnLevels.addEventListener('click', openLevelSel);
+ui.btnIntroHome.addEventListener('click', () => { releasePress(); sfx.click(); setState('menu'); });
 ui.btnIntroLevels.addEventListener('click', openLevelSel);
 ui.btnIntroChars.addEventListener('click', () => { renderCharGrid(); ui.charsel.classList.add('show'); sfx.click(); });
 ui.btnPauseLevels.addEventListener('click', openLevelSel);
