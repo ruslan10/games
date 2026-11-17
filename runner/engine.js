@@ -73,7 +73,7 @@ class Run{
  step(dt){if(this.status!=='playing')return;dt=Math.min(dt,1/30);this.time+=dt;this.brake=Math.max(0,this.brake-dt);if(this.vehicleTime>0){this.vehicleTime-=dt;if(this.vehicleTime<=0){this.vehicle=null;this.invincible=Math.max(this.invincible,.8);this.events.push({type:'vehicle-end'});}}
   this.x+=this.level.speed*dt*(this.vehicle==='board'?(this.brake>0?.7:1.13):this.brake>0?.8:1);
   const oldRoute=this.route;this.ground=0;this.route=null;for(const r of this.level.routes||[]){if(this.x>=r.start&&this.x<=r.end&&Math.abs(this.lateral-r.lane*2.6)<1.1){if(r.type==='roof'&&(this.x<r.start+10||oldRoute==='roof'||this.y>=r.height-.2)){this.ground=r.height*Math.max(0,Math.min(1,(this.x-r.start)/10,(r.end-this.x)/10));this.route='roof';}else if(r.type==='zip'&&((this.x<r.start+9&&this.y>.65)||this.zip>0)){this.zip=1;this.route='zip';this.y=r.height-1;this.vy=0;}}}if(this.route!=='zip'&&this.zip){this.zip=0;this.invincible=Math.max(this.invincible,.6);}
-  const wasAir=this.y>this.ground+.05;
+  const wasAir=this.y>this.ground||this.vy<0;
   if(this.trickTime>0){this.trickTime=Math.max(0,this.trickTime-dt);this.trickRotation=(1-this.trickTime/.52)*Math.PI*2;if(!this.trickTime)this.trickReady=true;}
   this.lateral+=(this.lane*2.6-this.lateral)*Math.min(1,dt*17);
   if(this.zip>0){this.y=2.6;this.vy=0;}
