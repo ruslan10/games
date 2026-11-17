@@ -36,12 +36,19 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   assert((await p.evaluate(()=>MonsterLabVoice.state().pending))===null,'no pending praise left');
   // next question: praise must not overlap the next instruction; narration stops/replaces it
   await p.locator('#next').click();
-  await sleep(300);
-  let pl=await plays(p);
-  let lastPraise=pl.map((u,i)=>/praise\d/.test(u)?i:-1).filter(i=>i>=0).pop();
-  let after=pl.slice(lastPraise+1).filter(u=>/feed_(target|mult)_pre/.test(u));
-  assert(after.length===1,'feed next instruction played after praise, not stacked');
-  assert(!/praise\d/.test(pl[pl.length-1]),'latest playback is the new instruction, not praise');
+  let t2=await p.evaluate(()=>MonsterLab.getState().q.target);
+  if(t2!==t){
+    await p.waitForFunction(()=>/feed_(target|mult)_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
+    let pl=await plays(p);
+    let lastPraise=pl.map((u,i)=>/praise\d/.test(u)?i:-1).filter(i=>i>=0).pop();
+    let after=pl.slice(lastPraise+1).filter(u=>/feed_(target|mult)_pre/.test(u));
+    assert(after.length===1,'feed next instruction played after praise, not stacked');
+    assert(!/praise\d/.test(pl[pl.length-1]),'latest playback is the new instruction, not praise');
+  }else{
+    // same target re-rolled: narration key unchanged, nothing should replay or stack
+    await sleep(300);
+    assert(await p.evaluate(()=>MonsterLabVoice.state().pending)===null,'same-key next question stacks nothing');
+  }
   await p.locator('#exit').click();await p.locator('[data-modal="1"]').click();
   console.log('PASS feed: praise on success only, sequenced before next instruction');
 
@@ -64,8 +71,29 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await p.locator('#check').click();
   await sleep(300);
   assert.equal(await praiseCount(p),before+2,'praise again on second machine success');
+  // rapid next while praise still playing: same narration key, new task - praise must be cut
+  let stSrc=await p.evaluate(()=>MonsterLabVoice.state().src);
+  assert(/praise\d/.test(stSrc),'praise is on the channel before rapid next');
+  await p.locator('#next').click();
+  await sleep(250);
+  let stNow=await p.evaluate(()=>MonsterLabVoice.state());
+  assert(!/praise\d/.test(stNow.src)||!stNow.playing,'stale praise cut on next same-key task');
+  assert.equal(stNow.playing,false,'nothing left playing over the new machine task');
+  assert.equal(stNow.pending,null,'no pending praise carried into the new task');
   await p.locator('#exit').click();await p.locator('[data-modal="1"]').click();
-  console.log('PASS machine: praise per success despite repeated narration key');
+  console.log('PASS machine: praise per success despite repeated narration key, stale praise cut on rapid next');
+
+  // --- Stop inside the pending window cancels praise; intended start path still works ---
+  before=await praiseCount(p);
+  await p.evaluate(()=>{MonsterLabVoice.praise();MonsterLabVoice.stop()});
+  await sleep(300);
+  assert.equal(await praiseCount(p),before,'stop inside pending window cancels praise');
+  assert.equal(await p.evaluate(()=>MonsterLabVoice.state().pending),null,'pending cleared by stop');
+  await p.evaluate(()=>MonsterLabVoice.praise());
+  await sleep(300);
+  assert.equal(await praiseCount(p),before+1,'praise start path intact after cancellation');
+  await p.evaluate(()=>MonsterLabVoice.stop());
+  console.log('PASS pending-window cancellation and start path');
 
   // --- Fractions compare: success praises ---
   await p.locator('[data-station="fractions"]').click();

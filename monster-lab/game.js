@@ -8,7 +8,7 @@ for(const mode of ['feed','machine','fractions'])for(let b=0;b<3;b++){const k=mo
 if(!save.times||typeof save.times!=='object')save.times={};for(const k of ['learned','stars']){if(!save.times[k]||typeof save.times[k]!=='object'||Array.isArray(save.times[k]))save.times[k]={};for(const n of Object.keys(save.times[k])){const v=save.times[k][n],t=Number(n);if(!(Number.isInteger(t)&&t>=2&&t<=10)||!(Number.isInteger(v)&&v>=0&&v<=3)){delete save.times[k][n]}else if(k==='learned')save.times[k][n]=v?1:0}}
 const learnedCount=()=>Object.entries(save.times.learned).filter(([n,v])=>v&&Number(n)>=2&&Number(n)<=10).length;
 let storageOK=true;function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch{storageOK=false}}
-let band=save.band,speed=false,game=null,screen='home',audio=null;
+let band=save.band,speed=false,game=null,screen='home',audio=null,taskSeq=0;
 window.GamesUpdate?.setSafeToReload(()=>screen==='home'&&!document.querySelector('.overlay'));
 const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const shuffle=a=>a.sort(()=>Math.random()-.5);
@@ -24,7 +24,7 @@ function makeQuestion(mode,b,n){if(mode==='feed'){if(b===2){let a=rand(4,8),v=ra
  if(b>0&&n%2===1){let d=b===1?[4,6,8][rand(0,2)]:[6,8,10,12][rand(0,3)],factor=d%4===0&&d>=8&&rand(0,1)?4:2,tden=d/factor,num=rand(1,tden-1);return{kind:'build',num,den:tden,outden:d,answer:num*factor}}
  const pairs=b===0?[[[1,2],[1,4]],[[1,3],[1,2]],[[1,4],[1,4]],[[2,3],[1,3]],[[2,4],[1,2]]]:b===1?[[[2,3],[3,4]],[[3,6],[2,4]],[[2,4],[3,8]],[[3,4],[5,8]],[[2,6],[1,3]]]:[[[5,6],[7,12]],[[3,4],[5,8]],[[4,6],[6,9]],[[7,8],[5,6]],[[5,10],[3,6]]];let pair=pairs[rand(0,pairs.length-1)].map(x=>x.slice());if(rand(0,1))pair.reverse();let [l,r]=pair;return{kind:'compare',l,r,answer:Math.sign(l[0]*r[1]-r[0]*l[1])};}
 function apply(op,k,x){return op==='+'?x+k:op==='−'?x-k:op==='×'?x*k:x/k}
-function newQuestion(){document.querySelector('#particles').replaceChildren();const g=game;if(!g)return;if(g.n>=6)return finish();g.gentle=g.errors>=2;g.q=makeQuestion(g.mode,g.gentle?Math.max(0,band-1):band,g.n);g.feedback='';g.feedbackType='';g.errors=0;g.usedHint=false;g.done=false;g.ten=0;g.one=0;g.selected=null;g.colored=new Set();render();}
+function newQuestion(){taskSeq++;document.querySelector('#particles').replaceChildren();const g=game;if(!g)return;if(g.n>=6)return finish();g.gentle=g.errors>=2;g.q=makeQuestion(g.mode,g.gentle?Math.max(0,band-1):band,g.n);g.feedback='';g.feedbackType='';g.errors=0;g.usedHint=false;g.done=false;g.ten=0;g.one=0;g.selected=null;g.colored=new Set();render();}
 function sceneSpeech(){const g=game,q=g.q;if(g.done)return '<strong>'+({feed:'יאמי, הצלחה! ✨',machine:'המכונה עובדת! ⚡',fractions:'תגלית טעימה! ✨'}[g.mode])+'</strong>עוד תגלית מצטרפת למעבדה.';if(g.mode==='feed')return `<span>בובו מזמין</span><strong>${q.a?`<span class="math">${q.a} × ${q.v}</span>`:q.target+' קוביות'}</strong>בדיוק, לא פחות ולא יותר!`;if(g.mode==='machine')return '<strong>מה הסוד של המכונה?</strong>אותו כלל עובד בכל שורה.';return g.q.kind==='build'?'<strong>הפיצה בידיים שלכם!</strong>נגיעה בחלק צובעת אותו.':'<strong>אותו גודל של פיצה.</strong>איזה חלק גדול יותר?'}
 function render(){const focused=document.activeElement;const focusAttr=['data-step','data-choice','data-slice'].find(k=>focused?.hasAttribute(k));const focusValue=focusAttr?focused.getAttribute(focusAttr):null;const g=game,s=stations[g.mode];app.className=g.done?'celebrate':'';app.innerHTML=`<div class="game-shell"><header class="game-top"><button class="icon ghost" id="exit" aria-label="חזרה למעבדות">⌂</button><div class="game-status"><strong>${s.name}</strong>${g.lesson?'הדגמה קצרה':'ניסוי '+(g.n+1)+' מתוך 6'} · ${['מגלים','חוקרים','ממציאים'][band]}</div><div class="top-actions">${speed?'<span class="timer" id="clock">'+Math.ceil(g.time)+'s</span>':'<span class="xp">💎 '+g.earned+'</span>'}<button class="icon ghost" id="pause" aria-label="השהיה">Ⅱ</button>${soundButton()}</div></header><div class="progress" role="progressbar" aria-label="התקדמות הסיבוב" aria-valuemin="0" aria-valuemax="6" aria-valuenow="${g.n}"><span style="width:${g.n/6*100}%"></span></div><div class="game-layout"><section class="scene ${g.mode}" style="background-image:url('assets/${g.mode}.webp')" aria-label="איור המעבדה"><div class="scene-label"><span class="chip">${s.emoji} ${s.short}</span><span class="chip">${g.gentle?'✦ מתרגלים בנחת':g.streak>1?'🔥 רצף '+g.streak:'✦ ניסוי חדש'}</span></div><div class="speech">${sceneSpeech()}</div></section><section class="workbench" aria-label="שולחן ניסויים">${g.lesson?lessonUI():`<div><div class="question-label">ניסוי ${String(g.n+1).padStart(2,'0')} / 06</div>${heading()}</div>${g.mode==='feed'?feedUI():g.mode==='machine'?machineUI():fractionUI()}${g.feedback?`<div id="feedback" class="feedback ${g.feedbackType}" role="status">${g.feedback}</div>`:'<div id="feedback" class="sr-only" role="status"></div>'}${g.done?'<button class="primary check" id="next">'+(g.n===5?'לאוסף התגליות ✨':'לניסוי הבא ←')+'</button>':'<button class="primary check" id="check">'+(g.mode==='feed'?'להאכיל את בובו 💎':g.mode==='machine'?'לבדוק את הכלל ⚡':'לבדוק את התגלית ✨')+'</button>'}<div class="secondary-row"><button class="ghost" id="hint" ${g.done?'disabled':''}>💡 רמז חזותי</button><button class="ghost" id="reset" ${g.done?'disabled':''}>מתחילים מחדש ↺</button><button class="ghost" id="relesson">📘 הדגמה</button></div>`}</section></div></div>`;
  bindSound();on('exit','click',()=>pause(true));on('pause','click',()=>pause(false));on('check','click',check);on('lessonGo','click',()=>{g.lesson=false;render();window.scrollTo(0,0)});on('relesson','click',()=>{g.lesson=true;render()});on('next','click',()=>{g.n++;newQuestion()});on('hint','click',hint);on('reset','click',()=>{g.ten=0;g.one=0;g.selected=null;g.colored.clear();g.feedback='';render()});
@@ -169,7 +169,7 @@ function voiceParts(){
     if(g.mode==='machine')return ['machine_q'];
     return [q.kind==='build'?'frac_build':'frac_compare']}
   return null}
-function voiceStop(){vtok++;try{vaud.pause()}catch{};vPlaying=false;voiceBtnState()}
+function voiceStop(){vtok++;try{vaud.pause()}catch{};vPlaying=false;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;praiseTask=-1;voiceBtnState()}
 function voiceBtnState(){const b=document.getElementById('voiceSay');if(!b)return;b.classList.toggle('playing',vPlaying);b.classList.toggle('attn',vBlocked&&!vPlaying);b.textContent=vPlaying?'⏹':'🔊';b.setAttribute('aria-label',vPlaying?'עצירת ההקראה':'שמיעה חוזרת של ההוראה')}
 function voicePlay(parts){
   voiceStop();const list=(parts||[]).filter(Boolean);if(!list.length)return;
@@ -180,13 +180,13 @@ function voicePlay(parts){
   step()}
 // ===== Spoken encouragement on success: one random short clip, sequenced before any next instruction =====
 const PRAISES=['praise1','praise2','praise3','praise4','praise5','praise6','praise7','praise8'];
-let lastPraise=-1,pendingPraise=null,praiseTimer=0;
+let lastPraise=-1,pendingPraise=null,praiseTimer=0,praiseTask=-1;
 function praise(){
   if(!save.voice||!vUnlocked||document.hidden)return;
   let i=rand(0,PRAISES.length-1);if(PRAISES.length>1&&i===lastPraise)i=(i+1)%PRAISES.length;lastPraise=i;
-  pendingPraise={clip:PRAISES[i],screen};clearTimeout(praiseTimer);
+  pendingPraise={clip:PRAISES[i],screen,task:taskSeq};clearTimeout(praiseTimer);
   praiseTimer=setTimeout(()=>{praiseTimer=0;const p=pendingPraise;pendingPraise=null;
-    if(p&&p.screen===screen&&save.voice&&!document.hidden&&!document.querySelector('.overlay'))voicePlay([p.clip])},80)}
+    if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){voicePlay([p.clip]);praiseTask=p.task}},80)}
 function voiceSync(){
   const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
   const parts=voiceParts(),key=parts?parts.join('|'):null;
@@ -195,11 +195,11 @@ function voiceSync(){
     host.insertAdjacentHTML('afterbegin',`<button class="icon ghost voice-btn" id="voiceSay" type="button">🔊</button>`);
     document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;voicePlay(p)};
     voiceBtnState()}
-  if(key===vKey)return;
+  if(key===vKey){if(praiseTask>=0&&praiseTask!==taskSeq)voiceStop();return}
   vKey=key;
   const pend=pendingPraise;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;
-  const pre=pend&&pend.screen===screen?pend.clip:null;
-  if(!key){if(pre&&save.voice&&vUnlocked)voicePlay([pre]);else voiceStop();return}
+  const pre=pend&&pend.screen===screen&&pend.task===taskSeq?pend.clip:null;
+  if(!key){if(pre&&save.voice&&vUnlocked){voicePlay([pre]);praiseTask=pend.task}else voiceStop();return}
   if(!vUnlocked){voiceStop();vBlocked=true;voiceBtnState();return}
   if(save.voice)voicePlay(pre?[pre,...parts]:parts);else voiceStop()}
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
