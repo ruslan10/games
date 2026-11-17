@@ -89,7 +89,7 @@ function bindCandy(){const t=tm,n=t.n,mode=t.step==='groups'?'bags':'rows',state
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const center=el=>{const r=el.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]};
  function refresh(){const c=document.getElementById('candyCounter');if(c)c.innerHTML=candyCounter(placed(),total);const ok=allFull(),fb=document.getElementById('candyFeedback'),nx=document.getElementById('candyNext');if(nx)nx.disabled=!ok;if(fb){fb.className='feedback '+(ok?'success':'');fb.innerHTML=ok?candyDoneHTML(t,mode):''}}
- function groupDone(g){const wrap=board.querySelector(`[data-bag="${g}"]`);if(wrap&&!wrap.classList.contains('done')){wrap.classList.add('done');sounds()}}
+ function groupDone(g){if(!state[g].every(Boolean))return;const wrap=board.querySelector(`[data-bag="${g}"]`);if(wrap&&!wrap.classList.contains('done')){wrap.classList.add('done');sounds()}}
  function land(g,s2,el,pop=true){el.classList.remove('flying');el.classList.add('full');el.innerHTML=slotCandy(g,s2,pop);el.removeAttribute('aria-hidden');el.removeAttribute('tabindex');el.setAttribute('aria-label','הסרת סוכרייה');groupDone(g);if(allFull()){window.Lab3D?.react('success');confetti();sounds();setTimeout(()=>document.getElementById('candyNext')?.scrollIntoView({behavior:reduced?'auto':'smooth',block:'end'}),120)}refresh()}
  function flyTo(g,s2){const el=slotEl(g,s2);if(!el||el.classList.contains('flying')||el.classList.contains('full'))return;state[g][s2]=true;t.candyTouched=true;board.classList.remove('first');el.classList.add('flying');
   if(reduced){land(g,s2,el,false);return}
