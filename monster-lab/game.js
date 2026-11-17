@@ -2,7 +2,7 @@
 (() => {
 const app=document.querySelector('#app'), KEY='monster-lab:v1';
 const stations={feed:{name:'מזנון הקוביות',short:'עשרות ויחידות',description:'בנו מספרים והאכילו חבר רעב',emoji:'💎',friend:'בּוּבּוּ'},machine:{name:'מכונת הכללים',short:'דפוסים ופעולות',description:'גלו מה נכנס, ומה יוצא',emoji:'⚙️',friend:'פרופסור פּוּף'},fractions:{name:'פיצריית השברים',short:'חלקים של שלם',description:'חלקו, צבעו והשוו פיצות',emoji:'🍕',friend:'זיק ופוף'}};
-const fresh=()=>({xp:0,solved:0,rounds:0,band:0,sound:false,medals:{}});
+const fresh=()=>({xp:0,solved:0,rounds:0,band:0,sound:false,voice:true,medals:{}});
 let save=fresh();try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'){save={...fresh(),...s};for(const k of ['xp','solved','rounds'])if(!Number.isFinite(save[k])||save[k]<0)save[k]=0;if(![0,1,2].includes(save.band))save.band=0;if(!save.medals||typeof save.medals!=='object')save.medals={};save.sound=save.sound===true}}catch{}
 for(const mode of ['feed','machine','fractions'])for(let b=0;b<3;b++){const k=mode+b,v=save.medals[k];save.medals[k]=Number.isInteger(v)&&v>=0&&v<=3?v:0}
 if(!save.times||typeof save.times!=='object')save.times={};for(const k of ['learned','stars']){if(!save.times[k]||typeof save.times[k]!=='object'||Array.isArray(save.times[k]))save.times[k]={};for(const n of Object.keys(save.times[k])){const v=save.times[k][n],t=Number(n);if(!(Number.isInteger(t)&&t>=2&&t<=10)||!(Number.isInteger(v)&&v>=0&&v<=3)){delete save.times[k][n]}else if(k==='learned')save.times[k][n]=v?1:0}}
@@ -16,7 +16,7 @@ const sounds=(ok=true)=>{if(!save.sound)return;try{audio??=new(window.AudioConte
 const on=(id,event,fn)=>document.getElementById(id)?.addEventListener(event,fn);
 function soundButton(){return `<button class="icon ghost" id="sound" aria-label="${save.sound?'כיבוי':'הפעלת'} צלילים" title="צלילים">${save.sound?'♪':'♩'}</button>`}
 function bindSound(){on('sound','click',()=>{save.sound=!save.sound;persist();sounds();document.querySelector('#sound').outerHTML=soundButton();bindSound()})}
-function home(){screen='home';game=null;app.className='';app.innerHTML=`<div class="shell"><header class="topbar"><span class="brand">🧪 מעבדת המפלצות</span><div class="top-actions"><span class="xp">💎 ${save.xp}</span>${soundButton()}</div></header><section class="hero"><div class="hero-copy"><div class="eyebrow">סקרנות היא כוח־על</div><h1>כאן מגדלים<br><span class="gold">רעיונות גדולים.</span></h1><p>שלוש מעבדות, מפלצות סקרניות והמון רגעי ״אהה!״. בואו לשחק עם מספרים.</p><button class="primary" id="start">פותחים את המעבדה ✨</button></div></section><section class="settings" aria-label="הגדרות משחק"><div><small>בוחרים אתגר שמתאים לכם</small><div class="segments" role="group" aria-label="רמת אתגר">${['מגלים · 6-8','חוקרים · 8-10','ממציאים · 10-12'].map((s,i)=>`<button data-band="${i}" class="${band===i?'active':''}" aria-pressed="${band===i}">${s}</button>`).join('')}</div></div><label class="speed"><input type="checkbox" id="speed" ${speed?'checked':''}> אתגר מהירות · 90 שניות <span aria-hidden="true">⚡</span></label></section><section class="station-grid" aria-label="מעבדות"><button class="station wide" data-times="1"><div class="station-art"></div><div class="station-info"><h3>✖️ חדר לוח הכפל</h3><p>לומדים צעד אחר צעד: קבוצות שוות, שורות, קפיצות ועזרה. בלי שעון. תרגול רק אם רוצים.</p><div class="station-foot"><span>נכנסים ללמוד ←</span><span class="medals">${learnedCount()} מתוך 9 לוחות נלמדו</span></div></div></button>${Object.entries(stations).map(([key,s])=>`<button class="station" data-station="${key}"><div class="station-art" style="background-image:url('assets/${key}.webp')"></div><div class="station-info"><h3>${s.name}</h3><p>${s.description}</p><div class="station-foot"><span>נכנסים לשחק ←</span><span class="medals" aria-label="${save.medals[key+band]||0} מתוך 3 כוכבים">${'★'.repeat(save.medals[key+band]||0)}${'☆'.repeat(3-(save.medals[key+band]||0))}</span></div></div></button>`).join('')}</section><div class="collection" aria-label="אוסף תגליות">${['🧬','🔮','🌱','🪐','🚀'].map((x,i)=>`<span class="specimen ${save.xp>=[0,20,60,120,240][i]?'unlocked':''}" title="${[0,20,60,120,240][i]} גבישים">${x}</span>`).join('')}<small>אוסף התגליות · תגלית חדשה ב־20, 60, 120 ו־240 גבישים</small></div><footer class="privacy">בלי חשבון, בלי פרסומות. ההתקדמות נשמרת בדפדפן הזה בלבד.${!storageOK?'<br>השמירה אינה זמינה בדפדפן זה.':''}<br><a href="../">חזרה לכל המשחקים</a> · <button id="about" class="ghost" style="border:0;padding:0 6px;min-height:32px;font-size:12px">איך משחקים?</button></footer></div>`;
+function home(){screen='home';game=null;app.className='';app.innerHTML=`<div class="shell"><header class="topbar"><span class="brand">🧪 מעבדת המפלצות</span><div class="top-actions"><span class="xp">💎 ${save.xp}</span>${soundButton()}</div></header><section class="hero"><div class="hero-copy"><div class="eyebrow">סקרנות היא כוח־על</div><h1>כאן מגדלים<br><span class="gold">רעיונות גדולים.</span></h1><p>שלוש מעבדות, מפלצות סקרניות והמון רגעי ״אהה!״. בואו לשחק עם מספרים.</p><button class="primary" id="start">פותחים את המעבדה ✨</button></div></section><section class="settings" aria-label="הגדרות משחק"><div><small>בוחרים אתגר שמתאים לכם</small><div class="segments" role="group" aria-label="רמת אתגר">${['מגלים · 6-8','חוקרים · 8-10','ממציאים · 10-12'].map((s,i)=>`<button data-band="${i}" class="${band===i?'active':''}" aria-pressed="${band===i}">${s}</button>`).join('')}</div></div><label class="speed"><input type="checkbox" id="speed" ${speed?'checked':''}> אתגר מהירות · 90 שניות <span aria-hidden="true">⚡</span></label><label class="speed"><input type="checkbox" id="voiceAuto"> הקראה אוטומטית של ההוראות <span aria-hidden="true">🗣</span></label></section><section class="station-grid" aria-label="מעבדות"><button class="station wide" data-times="1"><div class="station-art"></div><div class="station-info"><h3>✖️ חדר לוח הכפל</h3><p>לומדים צעד אחר צעד: קבוצות שוות, שורות, קפיצות ועזרה. בלי שעון. תרגול רק אם רוצים.</p><div class="station-foot"><span>נכנסים ללמוד ←</span><span class="medals">${learnedCount()} מתוך 9 לוחות נלמדו</span></div></div></button>${Object.entries(stations).map(([key,s])=>`<button class="station" data-station="${key}"><div class="station-art" style="background-image:url('assets/${key}.webp')"></div><div class="station-info"><h3>${s.name}</h3><p>${s.description}</p><div class="station-foot"><span>נכנסים לשחק ←</span><span class="medals" aria-label="${save.medals[key+band]||0} מתוך 3 כוכבים">${'★'.repeat(save.medals[key+band]||0)}${'☆'.repeat(3-(save.medals[key+band]||0))}</span></div></div></button>`).join('')}</section><div class="collection" aria-label="אוסף תגליות">${['🧬','🔮','🌱','🪐','🚀'].map((x,i)=>`<span class="specimen ${save.xp>=[0,20,60,120,240][i]?'unlocked':''}" title="${[0,20,60,120,240][i]} גבישים">${x}</span>`).join('')}<small>אוסף התגליות · תגלית חדשה ב־20, 60, 120 ו־240 גבישים</small></div><footer class="privacy">בלי חשבון, בלי פרסומות. ההתקדמות נשמרת בדפדפן הזה בלבד.${!storageOK?'<br>השמירה אינה זמינה בדפדפן זה.':''}<br><a href="../">חזרה לכל המשחקים</a> · <button id="about" class="ghost" style="border:0;padding:0 6px;min-height:32px;font-size:12px">איך משחקים?</button></footer></div>`;
  document.querySelectorAll('[data-band]').forEach(b=>b.onclick=()=>{band=Number(b.dataset.band);save.band=band;persist();home()});document.querySelectorAll('[data-station]').forEach(b=>b.onclick=()=>start(b.dataset.station));on('start','click',()=>{});document.querySelector('[data-times]')?.addEventListener('click',timesMenu);on('speed','change',e=>speed=e.target.checked);on('start','click',()=>{document.querySelector('.settings').scrollIntoView({behavior:'smooth',block:'start'});document.querySelector('[data-times]').focus({preventScroll:true})});on('about','click',()=>modal('ברוכים הבאים למעבדה','בכל סיבוב 6 ניסויים. במזנון בונים כמות בקוביות, במכונה מנסים כללי חשבון, ובפיצרייה משווים או צובעים חלקים. אפשר לטעות, לקבל רמז ולנסות שוב. אין אובדן חיים. בוחרים רמת אתגר חופשית; מצב המהירות הוא בחירה בלבד.',[{text:'בואו נשחק',fn:closeModal}]));bindSound();mount3D();}
 function start(mode){window.Lab3D?.setPaused(false);document.querySelector('#particles').replaceChildren();screen='game';game={lesson:true,mode,n:0,correct:0,first:0,earned:0,streak:0,time:90,paused:false,done:false,feedback:'',feedbackType:'',errors:0,usedHint:false,ten:0,one:0,selected:null,colored:new Set()};newQuestion();window.scrollTo(0,0)}
 function makeQuestion(mode,b,n){if(mode==='feed'){if(b===2){let a=rand(4,8),v=rand(7,12);return{target:a*v,a,v}}return{target:b===0?rand(n<2?11:21,n<2?29:49):rand(n<2?30:51,99)}}
@@ -140,5 +140,64 @@ function timesAct(a){const t=tm,n=t.n,L=window.Lab3D;if(!t)return;
  if(a==='pnext'){t.pq++;t.pErrors=0;t.feedback='';t.ftype='';t.sel=null;if(t.pq>=8){t.pDone=true;const stars=t.pFirst>=7?3:t.pFirst>=5?2:1;save.times.stars[n]=Math.max(save.times.stars[n]||0,stars);persist();confetti();L?.react('success')}window.scrollTo(0,0);return renderTimes()}
 }
 
+// ===== Spoken Hebrew instructions: bundled clips, one audio channel, replay button =====
+save.voice=save.voice!==false;
+const VQ=(document.currentScript?.src.match(/[?&]v=([a-f0-9]+)/)||[])[1]||'';
+const vaud=new Audio();vaud.preload='auto';
+let vtok=0,vUnlocked=false,vKey=null,vParts=null,vPlaying=false,vBlocked=false;
+const vUrl=p=>'audio/'+p+'.mp3'+(VQ?'?v='+VQ:'');
+const vNum=n=>Number.isInteger(n)&&n>=1&&n<=99?'n'+n:null;
+const vMult=(a,b,first)=>['mult_q_pre',vNum(a),'mult_q_mid',vNum(b),'mult_q_post'];
+function voiceParts(){
+  if(screen==='home')return ['home'];
+  if(screen==='summary')return ['summary'];
+  if(screen==='times'){
+    if(!tm)return ['times_menu'];
+    const t=tm,n=t.n;
+    if(t.step==='groups')return ['t_groups_pre',vNum(n),'t_groups_post'];
+    if(t.step==='array')return ['t_array_pre',vNum(n),'t_array_post'];
+    if(t.step==='skip'){if(t.skip>=10)return null;return t.skip===0?['t_skip_pre',vNum(n),'t_skip_post']:vMult(t.skip+1,n)}
+    if(t.step==='guided')return vMult(t.gks[t.gq],n);
+    if(t.step==='done')return ['t_done'];
+    if(t.step==='practice'){if(t.pDone)return ['summary'];const q=t.pQs[t.pq];return q?vMult(q.a,q.b):null}
+    return null}
+  if(screen==='game'&&game){
+    const g=game,q=g.q;
+    if(g.lesson)return [{feed:'feed_lesson',machine:'machine_lesson',fractions:'frac_lesson'}[g.mode]];
+    if(!q)return null;
+    if(g.mode==='feed')return q.a?['feed_mult_pre',vNum(q.a),'feed_mult_mid',vNum(q.v),'feed_mult_post']:['feed_target_pre',vNum(q.target),'feed_target_post'];
+    if(g.mode==='machine')return ['machine_q'];
+    return [q.kind==='build'?'frac_build':'frac_compare']}
+  return null}
+function voiceStop(){vtok++;try{vaud.pause()}catch{};vPlaying=false;voiceBtnState()}
+function voiceBtnState(){const b=document.getElementById('voiceSay');if(!b)return;b.classList.toggle('playing',vPlaying);b.classList.toggle('attn',vBlocked&&!vPlaying);b.textContent=vPlaying?'⏹':'🔊';b.setAttribute('aria-label',vPlaying?'עצירת ההקראה':'שמיעה חוזרת של ההוראה')}
+function voicePlay(parts){
+  voiceStop();const list=(parts||[]).filter(Boolean);if(!list.length)return;
+  const tok=vtok,urls=list.map(vUrl);let i=0;vPlaying=true;vBlocked=false;voiceBtnState();
+  const step=()=>{if(tok!==vtok)return;if(i>=urls.length){vPlaying=false;voiceBtnState();return}
+    vaud.src=urls[i++];const p=vaud.play();if(p&&p.catch)p.catch(err=>{if(tok!==vtok)return;vPlaying=false;vBlocked=err&&err.name==='NotAllowedError';voiceBtnState()})};
+  vaud.onended=step;vaud.onerror=()=>{if(tok!==vtok)return;vPlaying=false;voiceBtnState()};
+  step()}
+function voiceSync(){
+  const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
+  const parts=voiceParts(),key=parts?parts.join('|'):null;
+  const host=document.querySelector('.top-actions')||document.querySelector('header');
+  if(host&&parts&&!document.getElementById('voiceSay')){
+    host.insertAdjacentHTML('afterbegin',`<button class="icon ghost voice-btn" id="voiceSay" type="button">🔊</button>`);
+    document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;voicePlay(p)};
+    voiceBtnState()}
+  if(key===vKey)return;
+  vKey=key;
+  if(!key){voiceStop();return}
+  if(!vUnlocked){voiceStop();vBlocked=true;voiceBtnState();return}
+  if(save.voice)voicePlay(parts);else voiceStop()}
+const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+function voiceUnlock(){if(vUnlocked)return;vUnlocked=true;try{vaud.src=SILENT;const p=vaud.play();p&&p.catch&&p.catch(()=>{})}catch{}}
+document.addEventListener('pointerdown',voiceUnlock,{capture:true,passive:true});
+document.addEventListener('keydown',voiceUnlock,{capture:true});
+new MutationObserver(()=>voiceSync()).observe(app,{childList:true});
+new MutationObserver(()=>{if(document.querySelector('.overlay'))voiceStop()}).observe(document.body,{childList:true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)voiceStop()});
+window.MonsterLabVoice={parts:voiceParts,stop:voiceStop,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,src:vaud.src})};
 home();
 })();

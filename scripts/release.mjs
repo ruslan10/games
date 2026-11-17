@@ -12,6 +12,7 @@ for (const page of pages) {
   }
 }
 for (const name of readdirSync('monster-lab/assets')) if (/\.(?:js|webp|ttf)$/.test(name)) assets.add('monster-lab/assets/' + name);
+for (const name of readdirSync('monster-lab/audio')) if (/\.mp3$/.test(name)) assets.add('monster-lab/audio/' + name);
 const hash = createHash('sha256');
 for (const name of [...assets].sort()) hash.update(name).update(readFileSync(name));
 for (const name of pages) hash.update(name).update(normalize(readFileSync(name, 'utf8')));

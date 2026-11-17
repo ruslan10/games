@@ -53,3 +53,7 @@
 .cslot svg.pop{animation:pop .35s}
 @media (prefers-reduced-motion: reduce){.candy-board.first .bowl-pulse,.cslot.flying{animation:none}.cslot svg.pop{animation:none}}
 @media(max-width:700px){.scene.times.candy{min-height:120px!important}.candy-bowl{width:min(240px,68vw)}.candy-bag{grid-template-columns:repeat(var(--cols,1),38px);gap:5px;padding:20px 8px 10px}.cslot{width:38px;height:33px;min-height:33px}.cslot svg{width:35px;height:29px}.candy-row .cslot{min-width:0;width:auto;height:32px}.candy-row .cslot svg{width:30px;height:26px}}
+.voice-btn.playing{background:#79f5df33;border-color:var(--mint)}
+.voice-btn.attn{animation:voicePulse 1.4s ease-in-out infinite}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 #79f5df66}50%{box-shadow:0 0 0 8px #79f5df00}}
+@media (prefers-reduced-motion:reduce){.voice-btn.attn{animation:none;border-color:var(--mint)}}
