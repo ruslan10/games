@@ -19,3 +19,37 @@
 .scene.times{min-height:300px}
 @media(max-width:700px){.game-layout .scene{min-height:170px!important}.scene .speech{display:none!important}.scene-label{top:8px}.scene.times{min-height:170px!important}.times-grid{gap:8px}.station.wide .station-art{width:30%}.machine-table{grid-template-columns:1fr 54px 1fr}.answer-grid.four{gap:6px}}
 .arr{width:100%}.eq-groups{width:100%}
+
+/* Candy builder: tap-to-fill + drag (times room, steps 1-2) */
+.candy-board{display:flex;flex-direction:column;align-items:center;gap:14px;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.candy-bags{display:flex;gap:10px;justify-content:center;align-items:flex-end}
+.candy-bag{position:relative;display:grid;grid-template-columns:repeat(var(--cols,1),44px);gap:6px;padding:22px 10px 12px;background:linear-gradient(#b27a47,#8a5a30);border:2.5px solid #c98d54;border-radius:18px;box-shadow:inset 0 0 0 4px #7d512755,0 6px 14px #0006}
+.candy-bag:before{content:'';position:absolute;top:-11px;right:50%;transform:translateX(50%);width:34px;height:14px;background:#8a5a3b;border:2.5px solid #c98d54;border-radius:8px 8px 3px 3px}
+.candy-rows{display:flex;flex-direction:column;gap:10px;width:100%;align-items:center}
+.candy-row{display:grid;grid-template-columns:repeat(var(--n),minmax(0,44px));justify-content:center;gap:5px;padding:10px;background:#0b1c31aa;border:2px solid #74e2eb45;border-radius:16px;max-width:430px;width:100%}
+.candy-bag.done,.candy-row.done{border-color:#79f5df;box-shadow:0 0 16px #79f5df55}
+.candy-bag.done:after,.candy-row.done:after{content:'✓';position:absolute;top:-13px;left:-8px;width:28px;height:28px;border-radius:50%;background:#34d399;color:#053b2c;font-weight:900;font-size:17px;display:grid;place-items:center;box-shadow:0 2px 8px #0007;animation:pop .35s}
+.candy-row{position:relative}
+.candy-row.done:after{left:auto;right:-8px}
+.cslot{width:44px;height:36px;min-height:36px;padding:0;border-radius:10px;border:2px dashed #e8c9a0;background:#ffffff0a;display:grid;place-items:center;touch-action:manipulation}
+.candy-row .cslot{border-color:#5a6ea8;width:auto;min-width:34px}
+.cslot.hover{border-style:solid;border-color:var(--gold);background:#ffcf7833;box-shadow:0 0 14px #ffcf7866;transform:scale(1.12)}
+.cslot.flying{border-color:var(--gold);border-style:solid;animation:slotglow .5s infinite alternate}
+.cslot.full{border:2px solid transparent;background:transparent;cursor:pointer}
+.cslot svg{width:40px;height:33px;overflow:visible;pointer-events:none}
+.candy-bowl{width:min(270px,72vw);min-height:120px;padding:0;border:0;background:transparent;cursor:pointer;touch-action:none;position:relative}
+.candy-bowl:hover{background:transparent}
+.candy-bowl svg{width:100%;height:auto;overflow:visible}
+.candy-board.first .bowl-pulse{animation:bowlpulse 1.3s infinite}
+.candy-board:not(.first) .bowl-pulse,.candy-board:not(.first) .bowl-dot{display:none}
+.candy-fly{position:fixed;z-index:70;pointer-events:none;width:38px;height:32px}
+.candy-fly svg{width:38px;height:32px;overflow:visible}
+.candy-dots{display:inline-flex;gap:4px;margin-right:10px;vertical-align:middle;direction:ltr}
+.candy-dots i{width:9px;height:9px;border-radius:50%;background:#3a4a6b}
+.candy-dots i.on{background:var(--gold)}
+@keyframes bowlpulse{0%{r:30;opacity:.9}100%{r:48;opacity:0}}
+@keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes slotglow{from{box-shadow:0 0 4px #ffcf7844}to{box-shadow:0 0 14px #ffcf78aa}}
+.cslot svg.pop{animation:pop .35s}
+@media (prefers-reduced-motion: reduce){.candy-board.first .bowl-pulse,.cslot.flying{animation:none}.cslot svg.pop{animation:none}}
+@media(max-width:700px){.candy-bag{grid-template-columns:repeat(var(--cols,1),38px);gap:5px;padding:20px 8px 10px}.cslot{width:38px;height:33px;min-height:33px}.cslot svg{width:35px;height:29px}.candy-row .cslot{min-width:0;width:auto;height:32px}.candy-row .cslot svg{width:30px;height:26px}}
