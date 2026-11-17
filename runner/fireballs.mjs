@@ -11,7 +11,8 @@ export function createFireballs(level,fireMul=1){
   // Estimate the intercept at current forward speed; retry later if a gate/box is nearby.
   const impactX=run.x+level.speed*(FB.warn+FB.launchDist/(level.speed+FB.approach));
   const conflict=run.level.obs.some(o=>o.type!=='ramp'&&o.type!=='mover'&&o.lane===run.lane&&o.x>run.x-level.speed*.8-2&&o.x<impactX+level.speed*1.1+3);
-  if(t>=nextAt&&conflict)nextAt=t+.5;
+  const routeTransition=(level.routes||[]).some(r=>run.x>r.start-30&&run.x<r.end+20);
+  if(t>=nextAt&&(conflict||routeTransition))nextAt=t+.5;
   if(t>=nextAt&&run.x<run.level.length-45){list.push({phase:'warn',t0:t,lane:run.lane,x:0});out.spawned++;out.events.push({type:'fb-warn'});nextAt=t+gap();}
   for(let i=list.length-1;i>=0;i--){const f=list[i];
    if(f.phase==='warn'){if(t-f.t0>=FB.warn){f.phase='fly';f.x=run.x+FB.launchDist;out.events.push({type:'fb-launch'});}continue;}

@@ -28,3 +28,5 @@
 .res{background:#f2fbf3;border:1px solid #bfe6c4;border-radius:14px;padding:10px 12px;margin:10px 0;text-align:start}
 .resline{padding:3px 0;font-size:15px}
 .reviveoffer{text-align:center}
+
+.wordletters{display:flex;justify-content:center;gap:8px;margin:14px 0}.letter{display:inline-grid;place-items:center;width:48px;height:54px;border:2px dashed #8aaca0;border-radius:12px;font-size:28px;font-weight:800;color:#547369;background:#f9fffa}.letter.found{background:#35845e;border:2px solid #29734f;color:white}#huntlabel{text-align:center;font-size:12px;font-weight:700;background:#fff4d8dd;border-radius:20px;padding:3px 12px;width:fit-content;margin:6px auto;color:#3a6054;pointer-events:none}#powerlabel{max-width:95%;margin-inline:auto;font-size:13px}

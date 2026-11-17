@@ -34,7 +34,10 @@ function level(n,opts){n=Math.max(1,Math.min(20,Math.floor(n)||1));opts=opts||{}
    if(pt==='flight')for(let j=0;j<14;j++)coins.push({x:x+21+j*2.6,lane:((Math.floor(j/5)+i)%3)-1,y:3.3+Math.sin(j*.9)*.5,taken:false,air:true});}
  }
  for(let j=0;j<7;j++)coins.push({x:17+j*3,lane:0,y:.8,taken:false});
- return{n,speed,length,obs,coins,powers,biome:Math.floor((n-1)/5),seed};}
+ const routes=[{type:'roof',start:88,end:142,lane:-1,height:3},{type:'zip',start:178,end:218,lane:1,height:3.6}];
+ for(const r of routes)for(let x=r.start+12;x<r.end-8;x+=4)coins.push({x,lane:r.lane,y:r.height+.7,taken:false,air:true});
+ powers.push({x:246,lane:0,type:'board',taken:false},{x:Math.min(length-22,314),lane:1,type:'pogo',taken:false});
+ return{n,speed,length,obs,coins,powers,routes,biome:Math.floor((n-1)/5),seed};}
 class Run{
  constructor(n,opts){opts=opts||{};this.level=level(n,opts);this.char=CHARS.find(c=>c.id===opts.character)||CHARS[0];
   const up=this.up=Object.assign({},DEFAULT_UP,opts.upgrades);
@@ -44,19 +47,22 @@ class Run{
   this.magnet=0;this.shoes=0;this.flight=0;this.invincible=0;this.chaser=0;
   this.comboN=0;this.mult=1;this.maxMult=1;this.maxStreak=0;this.airJumps=this.char.ability==='double'?1:0;
   this.revived=false;this.caught=false;this.coinMul=opts.coinMul||1;
-  this.events=[];this.hits=0;}
+  this.events=[];this.hits=0;this.zen=!!opts.zen;this.ground=0;this.route=null;this.zip=0;this.vehicle=null;this.vehicleTime=0;this.brake=0;this.trickTime=0;this.trickReady=false;this.trickRotation=0;this.tricks=0;}
  move(dir){if(!dir)return;if(this.status==='playing')this.lane=Math.max(-1,Math.min(1,this.lane+dir));}
  jump(){if(this.status!=='playing'||this.flight>0)return false;
-  if(this.y<=.02&&this.vy<=0){this.vy=this.shoes>0?12.5+(this.char.ability==='jump'?.8:0):this.jumpV;this.slide=0;this.events.push({type:'jump'});return true;}
+  if(this.y<=this.ground+.02&&this.vy<=0){this.vy=this.vehicle==='pogo'?13:this.shoes>0?12.5+(this.char.ability==='jump'?.8:0):this.jumpV;this.slide=0;this.events.push({type:'jump'});return true;}
   if(this.airJumps>0){this.airJumps--;this.vy=Math.max(this.vy,this.jumpV*.94);this.slide=0;this.events.push({type:'jump',air:true});return true;}
   return false;}
- duck(){if(this.status!=='playing')return;this.slide=1.35;if(this.y>0&&this.flight<=0)this.vy=-12;this.events.push({type:'slide'});}
+ trick(){if(this.status!=='playing'||this.flight>0||this.zip>0||this.y-this.ground<.65||this.vy<0||this.trickTime>0||this.trickReady)return false;this.trickTime=.52;this.trickRotation=.01;this.events.push({type:'trick-start'});return true;}
+ duck(){if(this.vehicle){this.brake=1.2;this.events.push({type:'brake'});}this.trickReady=false;if(this.status!=='playing')return;this.slide=1.35;if(this.y>0&&this.flight<=0)this.vy=-12;this.events.push({type:'slide'});}
  _comboPoint(){this.comboN++;this.maxStreak=Math.max(this.maxStreak,this.comboN);const m=Math.min(3,1+Math.floor(this.comboN/this.comboNeed));if(m>this.mult){this.mult=m;this.maxMult=Math.max(this.maxMult,m);this.events.push({type:'combo',mult:m});}}
  _comboReset(){if(this.mult>1)this.events.push({type:'combo-reset'});this.comboN=0;this.mult=1;}
  /* One landed hit: shield breaks first, otherwise the chaser closes in (stumble);
     a hit while the chaser is already on you ends the run (caught). */
  hit(src){if(this.status!=='playing'||this.invincible>0)return false;
-  this.hits++;this._comboReset();
+  if(this.zen){this.invincible=1.4;this.events.push({type:'practice-hit'});return true;}
+  if(this.vehicle){this.vehicle=null;this.vehicleTime=0;this.invincible=1.4;this.trickReady=false;this.events.push({type:'vehicle-break'});return true;}
+  this.trickReady=false;this.trickTime=0;this.hits++;this._comboReset();
   if(this.shield>0){this.shield--;this.invincible=1.4;this.events.push({type:'break'});return true;}
   if(this.chaser<=0){this.chaser=12;this.invincible=1.4;this.events.push({type:'stumble'});return true;}
   this.status='dead';this.caught=true;this.events.push({type:'caught'});this.events.push({type:'dead'});return true;}
@@ -64,11 +70,16 @@ class Run{
  revive(){if(this.status!=='dead'||this.revived)return false;
   this.revived=true;this.status='playing';this.invincible=2.5;this.chaser=0;this.y=0;this.vy=0;this.slide=0;this.caught=false;
   this.events.push({type:'revive'});return true;}
- step(dt){if(this.status!=='playing')return;dt=Math.min(dt,1/30);this.time+=dt;this.x+=this.level.speed*dt;
+ step(dt){if(this.status!=='playing')return;dt=Math.min(dt,1/30);this.time+=dt;this.brake=Math.max(0,this.brake-dt);if(this.vehicleTime>0){this.vehicleTime-=dt;if(this.vehicleTime<=0){this.vehicle=null;this.invincible=Math.max(this.invincible,.8);this.events.push({type:'vehicle-end'});}}
+  this.x+=this.level.speed*dt*(this.vehicle==='board'?(this.brake>0?.7:1.13):this.brake>0?.8:1);
+  const oldRoute=this.route;this.ground=0;this.route=null;for(const r of this.level.routes||[]){if(this.x>=r.start&&this.x<=r.end&&Math.abs(this.lateral-r.lane*2.6)<1.1){if(r.type==='roof'&&(this.x<r.start+10||oldRoute==='roof'||this.y>=r.height-.2)){this.ground=r.height*Math.max(0,Math.min(1,(this.x-r.start)/10,(r.end-this.x)/10));this.route='roof';}else if(r.type==='zip'&&((this.x<r.start+9&&this.y>.65)||this.zip>0)){this.zip=1;this.route='zip';this.y=r.height-1;this.vy=0;}}}if(this.route!=='zip'&&this.zip){this.zip=0;this.invincible=Math.max(this.invincible,.6);}
+  const wasAir=this.y>this.ground+.05;
+  if(this.trickTime>0){this.trickTime=Math.max(0,this.trickTime-dt);this.trickRotation=(1-this.trickTime/.52)*Math.PI*2;if(!this.trickTime)this.trickReady=true;}
   this.lateral+=(this.lane*2.6-this.lateral)*Math.min(1,dt*17);
-  if(this.flight>0){this.flight=Math.max(0,this.flight-dt);this.y+=(3.4-this.y)*Math.min(1,dt*5);this.vy=0;
+  if(this.zip>0){this.y=2.6;this.vy=0;}
+  else if(this.flight>0){this.flight=Math.max(0,this.flight-dt);this.y+=(3.4-this.y)*Math.min(1,dt*5);this.vy=0;
    if(this.flight===0){this.invincible=Math.max(this.invincible,.8);this.events.push({type:'flightend'});}}
-  else{this.vy-=24*dt;this.y=Math.max(0,this.y+this.vy*dt);if(this.y===0){this.vy=0;this.airJumps=this.char.ability==='double'?1:0;}}
+  else{this.vy-=24*dt;this.y=Math.max(this.ground,this.y+this.vy*dt);if(this.y===this.ground){this.vy=0;this.airJumps=this.char.ability==='double'?1:0;if(wasAir){if(this.trickReady){this.tricks++;for(let i=0;i<4;i++)this._comboPoint();if(!this.zen)this.coins+=8*this.mult;this.events.push({type:'trick-land'});}else if(this.trickTime>0)this.events.push({type:'trick-miss'});this.trickReady=false;this.trickTime=0;this.trickRotation=0;}if(this.vehicle==='pogo'&&this.brake<=0&&this.slide<=0){this.vy=9.8;}}}
   this.slide=Math.max(0,this.slide-dt);this.magnet=Math.max(0,this.magnet-dt);this.shoes=Math.max(0,this.shoes-dt);
   this.invincible=Math.max(0,this.invincible-dt);this.chaser=Math.max(0,this.chaser-dt);
   for(const c of this.level.coins){if(c.taken)continue;
@@ -80,13 +91,14 @@ class Run{
    else if(p.type==='magnet')this.magnet=this.up.magnetSeconds+(this.char.ability==='magnet'?4:0);
    else if(p.type==='shoes')this.shoes=this.up.shoesSeconds;
    else if(p.type==='flight')this.flight=this.up.flightSeconds;
+   else if(p.type==='board'||p.type==='pogo'){this.vehicle=p.type;this.vehicleTime=7;this.brake=0;}
    this.events.push({type:p.type});}}
   for(const o of this.level.obs){
    if(o.type==='mover'){const mv=o.mover,mid=(mv.a+mv.b)/2,amp=Math.abs(mv.a-mv.b)/2;o.laneF=mid+amp*Math.sin(this.time*mv.speed+mv.phase);}
    if(!o.passed&&o.x<this.x-2){o.passed=true;if(o.type!=='ramp'){this._comboPoint();if(o.type==='mover')this.events.push({type:'moving-pass'});}}
    if(o.type==='ramp'){if(Math.abs(o.x-this.x)<1.3&&Math.abs(o.lane*2.6-this.lateral)<1.0&&this.y<.1&&this.flight<=0){this.vy=11.5;this.slide=0;this.events.push({type:'ramp'});}continue;}
    const lanePos=(o.type==='mover'?o.laneF:o.lane)*2.6,hw=o.type==='tunnel'?3.6:1.1;
-   if(Math.abs(o.x-this.x)>hw||Math.abs(lanePos-this.lateral)>1.0||this.invincible>0||this.flight>0||this.y>2.9)continue;
+   if(Math.abs(o.x-this.x)>hw||Math.abs(lanePos-this.lateral)>1.0||this.invincible>0||this.flight>0||this.zip>0||this.y>2.9)continue;
    const slideType=!!SLIDE_TYPES[o.type];
    const clear=slideType?this.slide>0&&this.y<.2:this.y>(o.type==='barrier'?.75:1.05);
    if(clear&&slideType)this.slide=Math.max(this.slide,.12);// Once a grounded slide enters a gate, stay low until the whole gate is behind.
