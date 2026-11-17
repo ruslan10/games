@@ -4,7 +4,13 @@
  * No DOM, randomness, clock reads or rendering. Runs in browsers or a JS VM.
  *
  * World(options): options override DEFAULTS below; player:{x,y,vx,vy,radius};
- * anchors:[{id,x,y,enabled?}]; terrain:[{x,y}] ascending X (solid below);
+ * anchors:[{id,x,y,enabled?,move?,breakAfter?,toggle?}]; terrain:[{x,y}]
+ * ascending X (solid below); winds:[{x1,y1,x2,y2,ax,ay}] acceleration zones.
+ * Anchor extras (all deterministic in world time):
+ *   move:{dx,dy,period,phase?}: base + (dx,dy)*sin(2pi t/period + phase);
+ *        or {rx,ry,period,phase?}: base + (rx*cos, ry*sin) orbit.
+ *   breakAfter: seconds of continuous attachment before the anchor breaks.
+ *   toggle:{period,duty,phase?}: enabled cyclically; a live rope lets go.
  * pads:[{id,x1,y1,x2,y2,nx?,ny?,restitution?,minSpeed?,boostX?,boostY?}].
  * standTopOffset optionally adds a one-way, non-bouncing horizontal top at y1-offset.
  * Pad normal points out of its active face; default is segment's upward normal.
@@ -50,6 +56,7 @@
       o=o||{};this.options=Object.assign({},DEFAULTS,o);
       if(!(this.options.fixedDt>0)||!Number.isFinite(this.options.fixedDt))throw new RangeError('fixedDt must be positive');
       this.anchors=o.anchors||[];this.pads=o.pads||[];this.terrain=o.terrain||[];
+      this.winds=o.winds||[];
       this.onBeforeStep=typeof o.onBeforeStep==='function'?o.onBeforeStep:null;
       this._initial=Object.assign({x:0,y:0,vx:0,vy:0,radius:12},o.player);
       this.reset();
@@ -57,7 +64,11 @@
     reset(p){
       this.player=Object.assign({},this._initial,p);this.player.radius=Math.max(1,this.player.radius);
       this.rope=null;this.held=false;this.tick=0;this.time=0;this.accumulator=0;
-      this.events=[];this._padTimes=new Map();this._contact=false;this._standingPad=null;this._platformTakeoff=false;this._airHops=this.options.airHops===undefined?1:this.options.airHops;
+      this.events=[];this._padTimes=new Map();this._contact=false;this._standingPad=null;this._platformTakeoff=false;
+      for(const a of this.anchors){
+        if(a._orig===undefined)a._orig={x:a.x,y:a.y,enabled:a.enabled};
+        a.x=a._orig.x;a.y=a._orig.y;a.enabled=a._orig.enabled;a._holdT=0;a._vx=0;a._vy=0;a._px=a.x;a._py=a.y;
+      }this._airHops=this.options.airHops===undefined?1:this.options.airHops;
       this.camera={x:this.player.x+this.options.cameraOffsetX,y:this.player.y+this.options.cameraOffsetY};
       return this;
     }
@@ -138,7 +149,8 @@
       if(d<r.length-1e-6||d<1e-9)return;
       const nx=dx/d,ny=dy/d;
       if(d>r.length){p.x=r.anchor.x+nx*r.length;p.y=r.anchor.y+ny*r.length;}
-      const vr=p.vx*nx+p.vy*ny;if(vr>0){p.vx-=vr*nx;p.vy-=vr*ny;}
+      const avx=r.anchor._vx||0,avy=r.anchor._vy||0;
+      const vr=(p.vx-avx)*nx+(p.vy-avy)*ny;if(vr>0){p.vx-=vr*nx;p.vy-=vr*ny;}
     }
     _reflect(nx,ny,e,minSpeed,bx,by){
       const p=this.player,vn=p.vx*nx+p.vy*ny;if(vn>=0)return false;
@@ -222,7 +234,42 @@
       }
       return contact;
     }
+    _anchorStep(){
+      const t=this.time,h=this.options.fixedDt;
+      for(const a of this.anchors){
+        if(a._orig===undefined){a._orig={x:a.x,y:a.y,enabled:a.enabled};a._px=a.x;a._py=a.y;}
+        let nx=a._orig.x,ny=a._orig.y;
+        const m=a.move;
+        if(m){
+          const w=2*Math.PI/Math.max(0.2,m.period||3),ph=m.phase||0;
+          if(m.rx!==undefined||m.ry!==undefined){nx+=(m.rx||0)*Math.cos(w*t+ph);ny+=(m.ry||0)*Math.sin(w*t+ph);}
+          else{const s=Math.sin(w*t+ph);nx+=(m.dx||0)*s;ny+=(m.dy||0)*s;}
+        }
+        a._vx=(nx-a._px)/h;a._vy=(ny-a._py)/h;a._px=a.x=nx;a._py=a.y=ny;
+        if(a.toggle){
+          const per=Math.max(0.3,a.toggle.period||2.5);
+          const duty=a.toggle.duty===undefined?0.5:a.toggle.duty;
+          const u=((t+(a.toggle.phase||0))%per+per)%per;
+          const on=u<duty*per;
+          const was=a.enabled!==false;
+          a.enabled=on&&a._orig.enabled!==false;
+          if(was&&!a.enabled&&this.rope&&this.rope.anchor===a){
+            this._event('anchoroff',{anchorId:a.id});this.release();
+          }
+        }
+      }
+      if(this.rope&&this.rope.anchor.breakAfter){
+        const a=this.rope.anchor;
+        a._holdT=(a._holdT||0)+h;
+        if(a._holdT>=a.breakAfter){
+          a.enabled=false;
+          this._event('anchorbreak',{anchorId:a.id});
+          this.release();
+        }
+      }else if(this.rope){this.rope.anchor._holdT=0;}
+    }
     _tick(){
+      this._anchorStep();
       if(this.onBeforeStep)this.onBeforeStep(this);
       const p=this.player,o=this.options,h=o.fixedDt;
       this._standingPad=null;
@@ -235,6 +282,11 @@
       let contact=false;
       for(let m=0;m<count;m++){
         const prev={x:p.x,y:p.y};p.vy+=o.gravity*s;
+        for(let zi=0;zi<this.winds.length;zi++){
+          const z=this.winds[zi];
+          if(z.enabled===false)continue;
+          if(p.x>=z.x1&&p.x<=z.x2&&p.y>=z.y1&&p.y<=z.y2){p.vx+=(z.ax||0)*s;p.vy+=(z.ay||0)*s;}
+        }
         if(this.held&&!this.rope&&o.airThrust){
           // flutter toward the goal (never backward), capped like swing assist
           if(p.vx<400)p.vx+=o.airThrust*s*o.forward;

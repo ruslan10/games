@@ -176,8 +176,8 @@
     .card { padding: 42px 28px 32px; }
   }
 </style>
-<meta name="games-release" content="6f6f6ae0a2b42beb">
-<script src="../update.js?v=6f6f6ae0a2b42beb"></script>
+<meta name="games-release" content="79ad9bcf939f783b">
+<script src="../update.js?v=79ad9bcf939f783b"></script>
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -197,7 +197,12 @@
     <button class="bigbtn small" id="btn-levels">בחירת שלב</button>
     <button class="bigbtn small" id="btn-chars">דמויות</button>
   </div>
+  <div style="display:flex; gap:14px; margin-top:14px">
+    <button class="bigbtn small" id="btn-daily" style="background:linear-gradient(180deg,#57dfc4,#2fb8a0); box-shadow:0 8px 0 #1d8a78, 0 14px 26px rgba(0,0,0,.22)">אתגר יומי</button>
+    <button class="bigbtn small" id="btn-endless" style="background:linear-gradient(180deg,#9b7bff,#6a4de0); box-shadow:0 8px 0 #4a33a8, 0 14px 26px rgba(0,0,0,.22)">אינסופי ∞</button>
+  </div>
   <div id="menu-level">שלב 1 / 30</div>
+  <div id="menu-extra" style="margin-top:8px; color:rgba(255,255,255,.85); font-weight:700; font-size:14px"></div>
   <a class="portal-link" href="../">לדף הבית של המשחקים</a>
   <div id="skin-toast"></div>
 </div>
@@ -235,6 +240,7 @@
     <div class="pct-wrap"><div class="pct-fill" id="clear-fill"></div></div>
     <div class="pct-label" id="clear-pct">0%</div>
     <div id="clear-time"></div>
+    <button class="bigbtn small" id="btn-share" style="display:none; margin-bottom:12px; background:linear-gradient(180deg,#57dfc4,#2fb8a0); box-shadow:0 6px 0 #1d8a78">שיתוף התוצאה 📋</button>
     <button class="bigbtn small" id="btn-next">השלב הבא</button>
   </div>
 </div>
@@ -244,6 +250,7 @@
   <div class="pause-actions">
     <button class="bigbtn small" id="btn-resume">המשך</button>
     <button class="bigbtn small" id="btn-restart">התחל מחדש</button>
+    <button class="bigbtn small secondary" id="btn-vib">רטט: פועל 📳</button>
     <button class="bigbtn small secondary" id="btn-pause-levels">בחירת שלב</button>
     <button class="bigbtn small secondary" id="btn-home">לתפריט המשחק</button>
     <a class="bigbtn small secondary" id="btn-portal" href="../">לדף הבית של המשחקים</a>
@@ -253,10 +260,11 @@
 <div id="failflash"></div>
 <div id="winflash"></div>
 
-<script src="physics.js?v=6f6f6ae0a2b42beb"></script>
-<script src="visuals.js?v=6f6f6ae0a2b42beb"></script>
-<script src="levels.js?v=6f6f6ae0a2b42beb"></script>
-<script src="fruits.js?v=6f6f6ae0a2b42beb"></script>
-<script src="game.js?v=6f6f6ae0a2b42beb"></script>
+<script src="endless.js?v=79ad9bcf939f783b"></script>
+<script src="physics.js?v=79ad9bcf939f783b"></script>
+<script src="visuals.js?v=79ad9bcf939f783b"></script>
+<script src="levels.js?v=79ad9bcf939f783b"></script>
+<script src="fruits.js?v=79ad9bcf939f783b"></script>
+<script src="game.js?v=79ad9bcf939f783b"></script>
 </body>
 </html>

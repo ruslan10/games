@@ -370,3 +370,188 @@ for (const [i, o] of OPENERS) {
   window.StickmanLevels[i] = n;
 }
 window.StickmanLevels.forEach((L, i) => addObstacles(L, i));
+
+/* ---------- feature twists: moving/breakable/toggling anchors, wind, bumper gaps ----------
+   Levels 15-30 (indices 14+) get gentle anchor motion first, then breakable and
+   toggling hooks deeper in. Base layouts, pads and fruits are untouched. */
+function anchorTwists(L, idx) {
+  if (idx < 14) return L;
+  const A = L.anchors;
+  // breakable/toggling hooks only where a missed catch lands on springs;
+  // net-free levels get gentle motion only, so timing stays fair.
+  const springy = L.pads.filter(p => p.kind && p.kind !== 'trampWall' && p.kind !== 'trampCeil').length >= 3;
+  const gentle = !springy;
+  for (let k = 2; k < A.length - 1; k++) {
+    const pat = (k + idx) % 5;
+    if (pat === 0) {
+      // vertical bob: changes the catch height rhythm
+      A[k].move = { dx: 0, dy: (gentle ? 42 : 55) + (idx % 3) * 12, period: Math.max(2.6, 3.6 - idx * 0.03), phase: k * 1.31 };
+    } else if (pat === 2 && idx >= 16 && !gentle) {
+      // horizontal drift along the route (only where springs catch a miss)
+      A[k].move = { dx: 70 + (idx % 2) * 20, dy: 0, period: 4.6, phase: k * 0.87 };
+    } else if (pat === 4 && idx >= 19 && springy) {
+      // breaks after a hold: grab, swing, get off (room for two pumps)
+      A[k].breakAfter = 2.2;
+    } else if (pat === 1 && idx >= 23 && springy) {
+      // blinks on/off: most of the cycle on, starts on
+      A[k].toggle = { period: 3.0, duty: 0.72, phase: (k * 0.7) % 1.2 };
+    }
+  }
+  return L;
+}
+
+/* tailwind strips on the long no-net flights: a soft forward push you can feel,
+   plus a rare headwind patch to fight through. */
+function windTwists(L, idx) {
+  L.winds = [];
+  if (idx < 15) return L;
+  const A = L.anchors;
+  const x0 = A[1].x, x1 = L.finishX - 200;
+  if (idx % 2 === 1) {
+    // one long tailwind band over the middle third
+    const a = Math.round(x0 + (x1 - x0) * 0.32), b = Math.round(x0 + (x1 - x0) * 0.62);
+    L.winds.push({ id: 'w1', x1: a, y1: -400, x2: b, y2: 900, ax: 150 + (idx % 5) * 18, ay: 0 });
+  }
+  if (idx >= 22 && idx % 3 === 2) {
+    const a = Math.round(x0 + (x1 - x0) * 0.72), b = Math.round(x0 + (x1 - x0) * 0.86);
+    L.winds.push({ id: 'w2', x1: a, y1: -400, x2: b, y2: 900, ax: -120, ay: -40 });
+  }
+  return L;
+}
+
+/* "no hooks here" stretch: one mid anchor is removed and a slide + balloon
+   bumper pair sits below instead, so the route falls onto the bumpers. */
+function bumperGapTwist(L, idx) {
+  if (idx < 17 || idx % 2 === 0) return L;
+  const A = L.anchors;
+  if (A.length < 8) return L;
+  const k = Math.floor(A.length / 2);
+  const a = A[k];
+  // the bumpers must sit below the swing band yet above the kill line;
+  // when the anchor hangs too low for both, skip the twist instead of
+  // planting pads nobody can survive reaching.
+  const top = Math.max(a.y + 465, 620);
+  const bot = L.killY - 190;
+  if (top > bot - 70) return L;
+  const by = Math.min(Math.max(a.y + 560, top + 40), bot - 40);
+  // remove the anchor; a bumper pad catches the fall and flings forward
+  A.splice(k, 1);
+  L.pads.push({ id: 'bg' + k, kind: 'bump', x1: a.x, y1: Math.round(by), x2: a.x + 56, y2: Math.round(by),
+    boostX: 260, boostY: -380, minSpeed: 860 });
+  L.pads.push({ id: 'bgs' + k, kind: 'slide', x1: a.x - 95, y1: Math.round(by - 45), x2: a.x + 85, y2: Math.round(by + 25),
+    boostX: 220, minSpeed: 880 });
+  return L;
+}
+
+window.StickmanLevels.forEach((L, i) => { anchorTwists(L, i); windTwists(L, i); bumperGapTwist(L, i); });
+
+/* ---------- daily challenge: one level built from the date ---------- */
+function dailyRng(key) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return function () {
+    h = Math.imul(h ^ (h >>> 15), 2246822519);
+    h = Math.imul(h ^ (h >>> 13), 3266489917);
+    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+  };
+}
+function dailyCandidate(dateKey, attempt) {
+  const r = dailyRng('stickman-daily-' + dateKey + '#' + attempt);
+  const nets = ['tramp', 'sparse', 'none', 'tramp', 'none'];
+  const o = {
+    n: 11 + Math.floor(r() * 4),
+    gap: [415 + Math.floor(r() * 15), 438 + Math.floor(r() * 14)],
+    dys: r() < 0.5 ? [1, -1, -0.7, 0.7] : [-1, 1, 0.8, -0.8],
+    amp: 115 + Math.floor(r() * 30),
+    nets: nets[Math.floor(r() * nets.length)],
+    assist: 190 + Math.floor(r() * 40),
+    killY: 940 + Math.floor(r() * 40),
+  };
+  const L = buildLevel('אתגר יומי', 'שלב מיוחד להיום - אותו שלב לכולם', o);
+  addObstacles(L, 10);
+  anchorTwists(L, 14 + Math.floor(r() * 15));
+  // daily always has one friendly tailwind somewhere mid-route
+  const A = L.anchors;
+  const a = A[2 + Math.floor(r() * (A.length - 5))];
+  L.winds = [{ id: 'w1', x1: a.x - 60, y1: -400, x2: a.x + 420, y2: 900, ax: 160, ay: 0 }];
+  if (r() < 0.5) bumperGapTwist(L, 17);
+  return L;
+}
+
+/* fairness gate: every daily must be finishable. A bounded heuristic bot -
+   hold to catch, release in the forward swing window, hop when grounded,
+   bail off breaking hooks - plays each candidate in the real physics engine.
+   The first candidate the bot completes is that day's level. Deterministic:
+   a date always derives the same candidates and accepts the same one, so the
+   shared ?daily= link always opens the identical level. Fully bounded work:
+   at most 6 candidates x 3 release timings x 30s of simulated play. */
+const DAILY_VERIFY_STRATS = [[0, 340], [0.1, 320], [-0.04, 360]];
+function dailyVerifyRun(L, si) {
+  const P = window.StickmanPhysics;
+  const [angPad, vtMin] = DAILY_VERIFY_STRATS[si % DAILY_VERIFY_STRATS.length];
+  const w = new P.World({
+    assist: L.assist || 240, assistSpeed: 900,
+    anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y, move: a.move, breakAfter: a.breakAfter, toggle: a.toggle })),
+    pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
+      boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640,
+      nx: p.nx, ny: p.ny, restitution: p.restitution,
+      kind: p.kind === 'bump' ? 'bump' : undefined,
+      standTopOffset: p.kind === 'trampCeil' ? 40 : undefined })),
+    winds: (L.winds || []).map(z => ({ id: z.id, x1: z.x1, y1: z.y1, x2: z.x2, y2: z.y2, ax: z.ax, ay: z.ay })),
+  });
+  const a0 = w.anchors.find(a => a.id === L.start.anchorId) || w.anchors[0];
+  const off = 130, dy = Math.sqrt(L.start.rope * L.start.rope - off * off);
+  w.reset({ x: a0.x - off, y: a0.y + dy });
+  w.attach(a0.id);
+  w.setHeld(true);
+  let held = true, reHoldAt = -1, falls = 0, attachT = 0, bestVt = 0;
+  for (let t = 0; t < 120 * 30; t++) {
+    w.step(1);
+    const p = w.player;
+    for (const e of w.drainEvents()) { if (e.type === 'attach') { attachT = w.time; bestVt = 0; } }
+    if (p.x >= L.finishX) return true;
+    if (p.y > L.killY) {
+      if (++falls >= 3) return false;
+      const first = w.anchors[0];
+      w.reset({ x: first.x - 130, y: first.y + 300 });
+      w.attach(first.id); w.setHeld(true); held = true; reHoldAt = -1;
+      continue;
+    }
+    if (reHoldAt > 0 && w.tick >= reHoldAt) { w.setHeld(true); held = true; reHoldAt = -1; }
+    if (w.rope && held) {
+      const r = w.rope, a = r.anchor;
+      const dx = p.x - a.x, dy2 = p.y - a.y, d = Math.hypot(dx, dy2) || 1;
+      const ang = Math.atan2(dx, dy2);
+      const tx = dy2 / d, ty = -dx / d;
+      const vt = p.vx * tx + p.vy * ty;
+      if (ang > 0) bestVt = Math.max(bestVt, vt);
+      const win = vt > Math.max(vtMin, bestVt * 0.97) && ang > 0.14 + angPad && ang < 1.0;
+      const desperate = w.time - attachT > 4 && vt > 150 && ang > 0.3 && ang < 1.2;
+      const breaking = a.breakAfter && (w.time - attachT) > a.breakAfter - 0.35 && ang > -0.2;
+      if (win || desperate || breaking) { w.setHeld(false); held = false; reHoldAt = w.tick + 50 + (si % 5) * 6; }
+    }
+    if (!w.rope && !held && w.getState().grounded) w.tap();
+    if (!w.rope && !held && p.vy > 350 && p.y > 500) w.tap();
+  }
+  return false;
+}
+function dailyCompletable(L) {
+  for (let s = 0; s < DAILY_VERIFY_STRATS.length; s++) if (dailyVerifyRun(L, s)) return true;
+  return false;
+}
+const dailyBuilt = {};
+window.StickmanDailyBuild = function (dateKey) {
+  if (dailyBuilt[dateKey]) return dailyBuilt[dateKey];
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const L = dailyCandidate(dateKey, attempt);
+    if (dailyCompletable(L)) { dailyBuilt[dateKey] = L; return L; }
+  }
+  // safety net if every candidate fails (not seen in practice): a clone of a
+  // classic level the verifier passes - never ship an unverified day
+  const base = JSON.parse(JSON.stringify(window.StickmanLevels[4]));
+  base.name = 'אתגר יומי';
+  base.hint = 'שלב מיוחד להיום - אותו שלב לכולם';
+  dailyBuilt[dateKey] = base;
+  return base;
+};
+window.StickmanDailyVerify = dailyCompletable; // test hook

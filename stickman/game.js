@@ -119,6 +119,8 @@ const ui = {
   clearTitle: $('clear-title'), clearTime: $('clear-time'),
   clearStars: $('clear-stars'), skinToast: $('skin-toast'),
   charsel: $('charsel'), charGrid: $('char-grid'), charTotal: $('char-total'), btnChars: $('btn-chars'), btnCharsClose: $('btn-chars-close'),
+  btnDaily: $('btn-daily'), btnEndless: $('btn-endless'), btnVib: $('btn-vib'),
+  btnShare: $('btn-share'), menuExtra: $('menu-extra'),
 };
 
 /* ---------- persistent state ---------- */
@@ -143,7 +145,46 @@ const store = {
   get spent() { return +(localStorage.getItem('sh_spent') || 0); },           // points spent buying characters
   set spent(v) { localStorage.setItem('sh_spent', Math.max(0, Math.round(v))); },
   balance() { return Math.max(0, this.totalPts() - this.spent); },            // spendable points
+  get vib() { try { return localStorage.getItem('sh_vib') !== '0'; } catch (e) { return false; } },  // haptics on unless disabled
+  set vib(v) { try { localStorage.setItem('sh_vib', v ? '1' : '0'); } catch (e) {} },
+  get endlessBest() { try { return +(localStorage.getItem('sh_endless_best') || 0); } catch (e) { return 0; } },  // meters
+  set endlessBest(v) { try { localStorage.setItem('sh_endless_best', Math.round(v)); } catch (e) {} },
+  dailyPts(key) { try { return +(localStorage.getItem('sh_daily_pts_' + key) || 0); } catch (e) { return 0; } },
+  setDailyPts(key, v) { try { localStorage.setItem('sh_daily_pts_' + key, Math.round(v)); } catch (e) {} },
+  dailyTime(key) { try { const v = +(localStorage.getItem('sh_daily_time_' + key) || 0); return v > 0 ? v : null; } catch (e) { return null; } },
+  setDailyTime(key, v) { try { localStorage.setItem('sh_daily_time_' + key, v); } catch (e) {} },
+  get dailyStreak() { try { return +(localStorage.getItem('sh_daily_streak') || 0); } catch (e) { return 0; } },
+  set dailyStreak(v) { try { localStorage.setItem('sh_daily_streak', v); } catch (e) {} },
+  get dailyLast() { try { return localStorage.getItem('sh_daily_last') || ''; } catch (e) { return ''; } },
+  set dailyLast(v) { try { localStorage.setItem('sh_daily_last', v); } catch (e) {} },
+  ghost(key) { try { const s = localStorage.getItem('sh_ghost_' + key); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+  setGhost(key, data) {
+    try { localStorage.setItem('sh_ghost_' + key, JSON.stringify(data)); }
+    catch (e) { /* storage full: drop the oldest ghosts */
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('sh_ghost_')) localStorage.removeItem(k);
+        }
+        localStorage.setItem('sh_ghost_' + key, JSON.stringify(data));
+      } catch (e2) { /* give up on the ghost, keep the game */ }
+    }
+  },
 };
+
+/* dates for the daily challenge, in the player's timezone */
+const DAY_TZ = 'Asia/Jerusalem';
+function dayKey(d) {
+  d = d || new Date();
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: DAY_TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d);
+  const g = t => p.find(x => x.type === t).value;
+  return g('year') + '-' + g('month') + '-' + g('day');
+}
+function shiftKey(key, days) {
+  const d = new Date(key + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 /* ---------- hero skins: buy once, keep forever ----------
    Points buy new characters. Owned characters can be equipped for free.
@@ -292,7 +333,22 @@ const sfx = {
   click: () => tone(440, 0.06, 'sine', 0.06),
   star: () => { tone(987, .09, 'sine', .11); setTimeout(() => tone(1318, .14, 'sine', .11), 80); },
   jump: () => tone(320, 0.13, 'square', 0.08, 760),
+  /* hook catches in a row climb a little major scale (Moonrope-style bells);
+     the streak resets when you touch ground or fall */
+  attachNote: (n) => {
+    const steps = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26];
+    const f = 523 * Math.pow(2, steps[Math.min(Math.max(n - 1, 0), steps.length - 1)] / 12);
+    tone(f, 0.11, 'sine', 0.10, f * 1.26);
+  },
+  perfect: (n) => {
+    const f = 784 * Math.pow(2, Math.min(n - 1, 8) / 24);
+    tone(f, 0.10, 'triangle', 0.12, f * 1.5);
+    setTimeout(() => tone(f * 1.5, 0.14, 'triangle', 0.10), 70);
+  },
 };
+
+/* short haptic pulses (Android Chrome); toggleable, on by default */
+function buzz(pat) { if (store.vib && navigator.vibrate) { try { navigator.vibrate(pat); } catch (e) {} } }
 
 /* ---------- canvas sizing ---------- */
 let W = 0, H = 0, DPR = 1;
@@ -334,7 +390,31 @@ const game = {
   rings: [],            // shockwave rings spawned at the finish instant
   body: 'hog',
   toastTimer: 0,
+  mode: 'classic',        // classic | daily | endless
+  dailyKey: null,
+  endlessSeed: 0,
+  endlessNext: 1,         // next endless chunk index to append
+  endlessDist: 0,         // best x reached this run (px)
+  perfectStreak: 0,
+  hookStreak: 0,          // consecutive catches without touching ground
+  ghostData: null,        // best-run samples being replayed
+  ghostRec: null,         // samples of the current run
+  ghostT: 0,
+  results: null,          // custom clear-card content for daily/endless
 };
+
+/* perfect-release window: just past the bottom of the arc, swinging forward.
+   Shared by the halo cue, the release bonus and the QA bot. */
+function perfectNow() {
+  const w = game.world;
+  if (!w || !w.rope) return false;
+  const p = w.player, a = w.rope.anchor;
+  const dx = p.x - a.x, dy = p.y - a.y, d = Math.hypot(dx, dy) || 1;
+  const ang = Math.atan2(dx, dy); // 0 at the bottom, + on the forward side
+  const tx = dy / d, ty = -dx / d;
+  const vt = p.vx * tx + p.vy * ty;
+  return vt > 320 && ang > 0.10 && ang < 1.05;
+}
 
 function buildWorld() {
   const L = game.level;
@@ -350,12 +430,13 @@ function buildWorld() {
   if (game.body === 'bird') abil.airThrust = 300;
   game.world = new P.World(Object.assign({
     assist: L.assist || 240, assistSpeed: 900,
-    anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y })),
+    anchors: L.anchors.map(a => ({ id: a.id, x: a.x, y: a.y, move: a.move, breakAfter: a.breakAfter, toggle: a.toggle })),
     pads: L.pads.map(p => ({ id: p.id, x1: p.x1, y1: p.y1, x2: p.x2, y2: p.y2,
       boostX: p.boostX || 0, boostY: p.boostY || 0, minSpeed: p.minSpeed || 640,
       nx: p.nx, ny: p.ny, restitution: p.restitution,
       kind: p.kind === 'bump' ? 'bump' : undefined,
       standTopOffset: p.kind === 'trampCeil' ? 40 : undefined })),
+    winds: (L.winds || []).map(z => ({ id: z.id, x1: z.x1, y1: z.y1, x2: z.x2, y2: z.y2, ax: z.ax, ay: z.ay })),
   }, abil));
   const a = L.anchors.find(a => a.id === L.start.anchorId);
   const off = 130, dy = Math.sqrt(L.start.rope * L.start.rope - off * off);
@@ -369,14 +450,88 @@ function buildWorld() {
   game.pops = [];
   game.rings.length = 0; game.zoom = 1; game.celebration = null;
   game.catRescued = false;
+  game.perfectStreak = 0; game.hookStreak = 0;
+  game.endlessDist = 0;
+  game.ghostRec = (game.mode === 'classic' || game.mode === 'daily') ? [] : null;
+  game.ghostT = 0;
+  game.ghostData = (game.mode === 'classic' || game.mode === 'daily') ? store.ghost(ghostKey()) : null;
+}
+
+/* ghosts are only valid for the exact level geometry they were recorded on */
+function ghostSig() {
+  const L = game.level;
+  let s = 0;
+  for (const a of L.anchors) s += Math.round(a.x) * 3 + Math.round(a.y) * 7;
+  return L.anchors.length + ':' + Math.round(L.finishX || 0) + ':' + s;
+}
+function ghostKey() {
+  return (game.mode === 'classic' ? 'l' + game.levelIndex : 'd' + game.dailyKey) + ':' + ghostSig();
+}
+
+/* endless: append generated chunks ahead of the hero, prune far behind */
+function growEndless() {
+  if (game.mode !== 'endless' || !game.world) return;
+  const E = window.StickmanEndless;
+  const px = game.world.player.x;
+  while (px + 2200 > game.endlessNext * E.CHUNK) {
+    const ch = E.chunk(game.endlessSeed, game.endlessNext++);
+    for (const a of ch.anchors) game.world.anchors.push(Object.assign({}, a));
+    for (const p of ch.pads) { game.world.pads.push(Object.assign({}, p)); game.level.pads.push(p); }
+    for (const z of ch.winds) game.world.winds.push(Object.assign({}, z));
+    for (const f of ch.fruits) game.fruits.push({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false });
+  }
+  const behind = px - 3200;
+  if (behind > 0) {
+    const ropeAnchor = game.world.rope && game.world.rope.anchor;
+    game.world.anchors = game.world.anchors.filter(a => a.x > behind || a === ropeAnchor);
+    game.world.pads = game.world.pads.filter(p => Math.max(p.x1, p.x2) > behind);
+    game.world.winds = game.world.winds.filter(z => z.x2 > behind);
+    game.fruits = game.fruits.filter(f => f.x > behind);
+    game.level.pads = game.level.pads.filter(p => Math.max(p.x1, p.x2) > behind);
+  }
 }
 
 function loadLevel(i) {
+  game.mode = 'classic';
   game.levelIndex = Math.max(0, Math.min(i, LEVELS.length - 1));
   game.level = LEVELS[game.levelIndex];
   game.theme = THEMES[Math.floor(game.levelIndex / 3) % THEMES.length];
   game.themeColors = Object.assign({}, COLORS, game.theme.c);
   buildWorld();
+  buildWeather();
+}
+
+function loadDaily(key) {
+  game.mode = 'daily';
+  game.dailyKey = key;
+  game.levelIndex = -1;
+  game.level = window.StickmanDailyBuild(key);
+  game.theme = THEMES[Math.floor(Math.abs(key.split('-').join('')) / 3) % THEMES.length];
+  game.themeColors = Object.assign({}, COLORS, game.theme.c);
+  buildWorld();
+  buildWeather();
+}
+
+function loadEndless() {
+  game.mode = 'endless';
+  game.dailyKey = null;
+  game.levelIndex = -1;
+  const E = window.StickmanEndless;
+  game.endlessSeed = E.makeSeed();
+  game.endlessNext = 1;
+  const ch0 = E.chunk(game.endlessSeed, 0);
+  game.level = {
+    name: 'מצב אינסופי', hint: 'העולם נבנה מחדש בכל הרצה - כמה רחוק תגיעו?',
+    start: { anchorId: ch0.anchors[0].id, rope: 360 },
+    assist: 230,
+    anchors: ch0.anchors, pads: ch0.pads, fruits: [], winds: ch0.winds,
+    finishX: Infinity, killY: 1160,
+  };
+  game.fruits0 = ch0.fruits;
+  game.theme = THEMES[game.endlessSeed % THEMES.length];
+  game.themeColors = Object.assign({}, COLORS, game.theme.c);
+  buildWorld();
+  game.fruits = ch0.fruits.map(f => ({ x: f.x, y: f.y, v: f.v, k: f.k, taken: false }));
   buildWeather();
 }
 
@@ -393,14 +548,48 @@ function setState(s) {
   ui.btnIntroChars.style.display = (s === 'intro') ? 'flex' : 'none';
   if (s === 'menu') {
     ui.menuLevel.textContent = 'שלב ' + store.level + ' / ' + LEVELS.length + '  •  ' + store.balance() + ' נקודות  •  ⭐ ' + Math.floor(store.totalPts() / 100);
+    const bits = [];
+    if (store.dailyStreak > 0) bits.push('רצף יומי: ' + store.dailyStreak + (store.dailyStreak === 1 ? ' יום' : ' ימים'));
+    if (store.endlessBest > 0) bits.push('🏁 שיא אינסופי: ' + store.endlessBest + ' מ׳');
+    ui.menuExtra.textContent = bits.join('  •  ');
     renderCharGrid();
   }
   if (s === 'intro') {
-    ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1);
-    ui.introName.textContent = game.level.name || '';
-    ui.introHint.textContent = game.level.hint || '';
+    if (game.mode === 'daily') {
+      ui.introLevel.textContent = 'אתגר יומי';
+      ui.introName.textContent = game.dailyKey.split('-').reverse().join('.');
+      const best = store.dailyPts(game.dailyKey);
+      ui.introHint.textContent = (game.level.hint || '') + (best ? '  •  השיא שלכם היום: ' + best + ' נק׳' : '');
+    } else if (game.mode === 'endless') {
+      ui.introLevel.textContent = 'מצב אינסופי';
+      ui.introName.textContent = 'כמה רחוק תגיעו?';
+      ui.introHint.textContent = store.endlessBest ? 'השיא שלכם: ' + store.endlessBest + ' מ׳' : (game.level.hint || '');
+    } else {
+      ui.introLevel.textContent = 'שלב ' + (game.levelIndex + 1);
+      ui.introName.textContent = game.level.name || '';
+      ui.introHint.textContent = game.level.hint || '';
+    }
   }
-  if (s === 'clear') {
+  if (s === 'clear' && game.results) {
+    const R = game.results;
+    ui.clearTitle.textContent = R.title;
+    ui.clearStars.innerHTML = '';
+    for (const line of R.lines) {
+      const d = document.createElement('div');
+      d.className = 'clear-newbest';
+      d.style.color = line.color || '#8a80c0';
+      d.textContent = line.text;
+      ui.clearStars.appendChild(d);
+    }
+    ui.btnShare.style.display = R.share ? '' : 'none';
+    ui.clearPct.textContent = R.foot || '';
+    ui.clearTime.textContent = R.foot2 || '';
+    ui.btnNext.textContent = R.nextLabel;
+    ui.clearFill.style.width = '0%';
+    ui.clearFill.parentNode.style.display = 'none';
+  } else if (s === 'clear') {
+    ui.btnShare.style.display = 'none';
+    ui.clearFill.parentNode.style.display = '';
     const last = game.levelIndex >= LEVELS.length - 1;
     ui.clearTitle.textContent = last ? 'כל הכבוד! סיימת את כל השלבים!' : 'השלב הושלם!';
     ui.clearStars.innerHTML = '';
@@ -434,7 +623,20 @@ function setState(s) {
 }
 
 function startLevel(i) {
+  game.results = null;
   loadLevel(i);
+  setState('intro');
+}
+
+function startDaily(key) {
+  game.results = null;
+  loadDaily(key || dayKey());
+  setState('intro');
+}
+
+function startEndless() {
+  game.results = null;
+  loadEndless();
   setState('intro');
 }
 
@@ -455,19 +657,57 @@ function win() {
   ui.winflash.classList.add('show');
   sfx.win();
   const t = game.playTime;
-  const prevBest = store.best(game.levelIndex);
-  game.newBest = !prevBest || t < prevBest;
-  if (game.newBest) store.setBest(game.levelIndex, Math.round(t * 10) / 10);
-  game.lastTime = Math.round(t * 10) / 10;
+  if (game.mode === 'daily') {
+    const key = game.dailyKey;
+    const prevT = store.dailyTime(key);
+    game.newBest = !prevT || t < prevT;
+    if (game.newBest) {
+      store.setDailyTime(key, Math.round(t * 10) / 10);
+      if (game.ghostRec && game.ghostRec.length > 10) store.setGhost(ghostKey(), game.ghostRec);
+    }
+    game.lastTime = Math.round(t * 10) / 10;
+  } else {
+    const prevBest = store.best(game.levelIndex);
+    game.newBest = !prevBest || t < prevBest;
+    if (game.newBest) {
+      store.setBest(game.levelIndex, Math.round(t * 10) / 10);
+      if (game.ghostRec && game.ghostRec.length > 10) store.setGhost(ghostKey(), game.ghostRec);
+    }
+    game.lastTime = Math.round(t * 10) / 10;
+  }
   // level bonuses: finishing, plus a big one for collecting every fruit
   game.bonusPts = 25 + (game.taken >= game.fruits.length && game.fruits.length ? 100 : 0);
   game.runPts += game.bonusPts;
-  game.newPtsBest = game.runPts > store.pts(game.levelIndex);
-  if (game.newPtsBest) store.setPts(game.levelIndex, game.runPts);
-  if (game.levelIndex >= LEVELS.length - 1) store.done = true;
-  store.level = Math.min(game.levelIndex + 2, LEVELS.length);
-  store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
+  if (game.mode === 'daily') {
+    const key = game.dailyKey;
+    game.newPtsBest = game.runPts > store.dailyPts(key);
+    if (game.newPtsBest) store.setDailyPts(key, game.runPts);
+    // day streak: consecutive Jerusalem days with a completed daily
+    if (store.dailyLast !== key) {
+      store.dailyStreak = store.dailyLast === shiftKey(key, -1) ? store.dailyStreak + 1 : 1;
+      store.dailyLast = key;
+    }
+  } else {
+    game.newPtsBest = game.runPts > store.pts(game.levelIndex);
+    if (game.newPtsBest) store.setPts(game.levelIndex, game.runPts);
+    if (game.levelIndex >= LEVELS.length - 1) store.done = true;
+    store.level = Math.min(game.levelIndex + 2, LEVELS.length);
+    store.pct = store.done ? 100 : Math.round(100 * (store.level - 1) / LEVELS.length);
+  }
   game.world.setHeld(false);
+  if (game.mode === 'daily') {
+    game.results = {
+      title: 'האתגר היומי הושלם!',
+      lines: [
+        { text: 'ניקוד: ' + game.runPts + ' נק׳  •  זמן: ' + game.lastTime + ' שנ׳', color: '#4a3ba8' },
+        { text: (game.newPtsBest ? '🏆 שיא חדש להיום!  ' : 'השיא להיום: ' + store.dailyPts(game.dailyKey) + ' נק׳  ') + 'רצף: ' + store.dailyStreak + (store.dailyStreak === 1 ? ' יום' : ' ימים'), color: '#4ec94f' },
+      ],
+      foot: 'אותו שלב לכולם היום - חוזר מחר עם אתגר חדש',
+      foot2: '',
+      nextLabel: 'לתפריט',
+      share: true,
+    };
+  }
   // superman-style fly-off: launch the hero up and ahead, physics keeps
   // simulating through the clear celebration instead of freezing.
   const pl = game.world.player;
@@ -498,8 +738,8 @@ function fail() {
     game.catRescued = true;
     const p = game.world.player;
     let best = null;
-    for (const a of game.level.anchors) if (a.x < p.x - 40 && (!best || a.x > best.x)) best = a;
-    const a = best || game.level.anchors[0];
+    for (const a of game.world.anchors) if (a.enabled !== false && a.x < p.x - 40 && (!best || a.x > best.x)) best = a;
+    const a = best || game.world.anchors[0];
     game.world.setHeld(false);
     game.world.reset({ x: a.x - 60, y: a.y + 300 });
     game.world.attach(a.id);
@@ -507,6 +747,29 @@ function fail() {
     game.pops.push({ x: a.x, y: a.y + 160, t: 0, txt: 'ניצלת!', col: '#a5f5a9' });
     game.shake = Math.max(game.shake, 6);
     sfx.jump && sfx.jump();
+    return;
+  }
+  if (game.mode === 'endless') {
+    game.state = 'failing';
+    game.failTimer = 0.9;
+    ui.fail.classList.add('show');
+    sfx.fail();
+    buzz([40, 60, 40]);
+    game.world.setHeld(false);
+    const dist = Math.max(0, Math.round(game.endlessDist / 50));
+    const newBest = dist > store.endlessBest;
+    if (newBest) store.endlessBest = dist;
+    game.results = {
+      title: 'נפלתם!',
+      lines: [
+        { text: 'מרחק: ' + dist + ' מ׳  •  ' + game.runPts + ' נק׳ פירות', color: '#4a3ba8' },
+        { text: newBest ? '🏆 שיא חדש!' : 'השיא שלכם: ' + store.endlessBest + ' מ׳', color: newBest ? '#4ec94f' : '#8a80c0' },
+      ],
+      foot: '',
+      foot2: '',
+      nextLabel: 'עוד הרצה',
+      share: false,
+    };
     return;
   }
   game.state = 'failing';
@@ -531,7 +794,38 @@ function press() {
   if (result === 'jump' || result === 'hop') { sfx.jump(); game.shake = Math.max(game.shake, 2); }
   game.world.setHeld(true);
 }
-function releasePress() { if (!pointerHeld) return; pointerHeld = false; if (game.world) game.world.setHeld(false); }
+function releasePress() {
+  if (!pointerHeld) return;
+  pointerHeld = false;
+  if (!game.world) return;
+  if (game.state === 'play' && game.world.rope) {
+    if (perfectNow()) {
+      game.world.setHeld(false);
+      const p = game.world.player;
+      // speed boost on top of any character release boost, capped by the engine
+      const boost = 1.12;
+      p.vx *= boost; p.vy *= boost;
+      // combined boost (e.g. ninja's releaseBoost x perfect) stays under the engine cap
+      const cap = game.world.options.maxSpeed * 1.15;
+      const sp = Math.hypot(p.vx, p.vy);
+      if (sp > cap) { p.vx *= cap / sp; p.vy *= cap / sp; }
+      game.perfectStreak++;
+      const gain = 5 + 5 * Math.min(game.perfectStreak, 8);
+      game.runPts += gain;
+      game.pops.push({ x: p.x, y: p.y - 60, t: 0, txt: 'שחרור מושלם! +' + gain + (game.perfectStreak > 1 ? ' x' + game.perfectStreak : ''), col: '#7bf2a8' });
+      game.particles.confetti(p.x, p.y, { count: 18, spread: 160 });
+      game.rings.push({ x: p.x, y: p.y, t: 0, max: 0.45, col: '#57e88f' });
+      game.shake = Math.max(game.shake, 3);
+      sfx.perfect(game.perfectStreak);
+      buzz(25);
+    } else {
+      game.perfectStreak = 0;
+      game.world.setHeld(false);
+    }
+  } else {
+    game.world.setHeld(false);
+  }
+}
 canvas.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
 window.addEventListener('pointerup', releasePress);
 window.addEventListener('pointercancel', releasePress);
@@ -544,16 +838,37 @@ window.addEventListener('keyup', e => {
 });
 
 ui.btnPlay.addEventListener('click', () => { sfx.click(); startLevel(store.level - 1); });
+ui.btnDaily.addEventListener('click', () => { sfx.click(); startDaily(); });
+ui.btnEndless.addEventListener('click', () => { sfx.click(); startEndless(); });
+function renderVib() { ui.btnVib.textContent = store.vib ? 'רטט: פועל 📳' : 'רטט: כבוי'; }
+ui.btnVib.addEventListener('click', () => { store.vib = !store.vib; renderVib(); sfx.click(); if (store.vib) buzz(20); });
+renderVib();
+ui.btnShare.addEventListener('click', () => {
+  sfx.click();
+  const key = game.dailyKey || dayKey();
+  const link = location.origin + location.pathname + '?daily=' + key;
+  const txt = 'סטיקמן - אתגר יומי ' + key + ': ' + game.runPts + ' נק׳ ב-' + game.lastTime + ' שנ׳! 🔥 רצף ' + store.dailyStreak + '. נסו לנצח אותי: ' + link;
+  const done = () => showToast('התוצאה הועתקה! 📋');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done, () => { window.prompt('העתיקו:', txt); });
+  } else window.prompt('העתיקו:', txt);
+});
 ui.btnGo.addEventListener('click', beginPlay);
 ui.btnNext.addEventListener('click', () => {
   sfx.click();
+  if (game.mode === 'daily') { setState('menu'); return; }
+  if (game.mode === 'endless') { startEndless(); beginPlay(); return; }
   const next = (game.levelIndex + 1) % LEVELS.length;
   startLevel(next);
 });
 ui.btnPause.addEventListener('click', () => { if (game.state === 'play') { setState('paused'); sfx.click(); } });
 $('btn-home').addEventListener('click', () => { releasePress(); sfx.click(); setState('menu'); });
 ui.btnResume.addEventListener('click', () => { if (game.state === 'paused') { setState('play'); sfx.click(); } });
-ui.btnRestart.addEventListener('click', () => { sfx.click(); buildWorld(); setState('play'); });
+ui.btnRestart.addEventListener('click', () => {
+  sfx.click();
+  if (game.mode === 'endless') { startEndless(); beginPlay(); return; }
+  buildWorld(); setState('play');
+});
 function renderMute() { ui.btnMute.textContent = store.mute ? '🔇' : '🔊'; }
 ui.btnMute.addEventListener('click', () => { store.mute = !store.mute; renderMute(); sfx.click(); });
 renderMute();
@@ -922,9 +1237,15 @@ function drawPops() {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'ltr';
     ctx.lineWidth = 4 * big; ctx.strokeStyle = 'rgba(36,31,58,.85)';
     const yy = p2.y - 24 - p2.t * 46;
-    ctx.strokeText(p2.txt, p2.x, yy);
+    // keep popups fully on-screen: clamp center by measured text half-width
+    const cam = game.world ? game.world.camera : { x: 0 };
+    const zm = game.zoom || 1;
+    const sx = (p2.x - cam.x) * zm + W / 2;
+    const half = ctx.measureText(p2.txt).width / 2 + 8;
+    const px = cam.x + (Math.max(half, Math.min(W - half, sx)) - W / 2) / zm;
+    ctx.strokeText(p2.txt, px, yy);
     ctx.fillStyle = p2.col;
-    ctx.fillText(p2.txt, p2.x, yy);
+    ctx.fillText(p2.txt, px, yy);
     ctx.restore();
   }
 }
@@ -974,7 +1295,70 @@ function drawPadCues(L, cam) {
   }
 }
 
+function drawWinds() {
+  const ws = game.world ? game.world.winds : [];
+  if (!ws || !ws.length) return;
+  ctx.save();
+  for (const z of ws) {
+    const fwd = (z.ax || 0) >= 0;
+    ctx.fillStyle = fwd ? 'rgba(120,230,255,.10)' : 'rgba(255,170,120,.10)';
+    ctx.fillRect(z.x1, z.y1, z.x2 - z.x1, z.y2 - z.y1);
+    // drifting streaks that show the push direction
+    const dir = fwd ? 1 : -1;
+    const speed = Math.abs(z.ax || 0) * 1.6;
+    ctx.strokeStyle = fwd ? 'rgba(190,240,255,.5)' : 'rgba(255,200,160,.5)';
+    ctx.lineWidth = 3; ctx.lineCap = 'round';
+    const span = z.x2 - z.x1;
+    for (let i = 0; i < 7; i++) {
+      const yy = z.y1 + 120 + ((i * 173) % Math.max(1, (z.y2 - z.y1 - 240)));
+      let xx = z.x1 + ((i * 241 + game.time * speed) % span);
+      if (!fwd) xx = z.x2 - (xx - z.x1);
+      ctx.globalAlpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(game.time * 3 + i * 2.2));
+      ctx.beginPath();
+      ctx.moveTo(xx, yy);
+      ctx.lineTo(xx - dir * 46, yy);
+      ctx.stroke();
+      // arrow head
+      ctx.beginPath();
+      ctx.moveTo(xx + dir * 4, yy);
+      ctx.lineTo(xx - dir * 8, yy - 7);
+      ctx.moveTo(xx + dir * 4, yy);
+      ctx.lineTo(xx - dir * 8, yy + 7);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+const GHOST_COLORS = { hogBlue: '#e8ecff', hogBlueD: '#b9c2e8', hogBlueL: '#ffffff', hogTan: '#e8ecff', hogTanD: '#b9c2e8', hogRed: '#d5dbff', hogRedD: '#aab4dd', hogRedL: '#ffffff' };
+function drawGhost() {
+  const g = game.ghostData;
+  if (!g || g.length < 10) return;
+  if (game.state !== 'play' && game.state !== 'clearing') return;
+  const i = Math.min(g.length - 1, Math.floor(game.playTime / 0.05));
+  if (game.playTime > g.length * 0.05 + 0.6) return; // ghost already finished
+  const s = g[i];
+  ctx.save();
+  ctx.globalAlpha = 0.38;
+  let rope = null;
+  if (s[2] >= 0 && game.world.anchors[s[2]]) {
+    const a = game.world.anchors[s[2]];
+    rope = { x: a.x, y: a.y };
+  }
+  V.drawPlayer(ctx, {
+    x: s[0], y: s[1], pose: rope ? 'swing' : 'fly', time: game.time, facing: 1,
+    angle: rope ? Math.atan2(s[1] - rope.y, s[0] - rope.x) - Math.PI / 2 : 0,
+    curl: 0.4, colors: Object.assign({}, COLORS, GHOST_COLORS), body: game.body,
+  });
+  if (rope) {
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(rope.x, rope.y); ctx.lineTo(s[0], s[1]); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawFinish(L) {
+  if (!isFinite(L.finishX)) return;
   const x = L.finishX, top = -200, bot = L.killY - 150, s = 18;
   ctx.save();
   for (let y = top, row = 0; y < bot; y += s, row++) {
@@ -995,21 +1379,46 @@ function drawRope(rope, hand) {
 }
 
 function drawHUD() {
-  const n = game.levelIndex + 1;
   const narrow = W < 600;
   const bw = Math.max(90, Math.min(170, W * 0.14)), bh = 10, bx = (W - bw) / 2, by = narrow ? 84 : 20;
   const p = game.world.player;
-  const t = Math.max(0, Math.min(1, (p.x - game.levelStartX) / (game.level.finishX - game.levelStartX)));
   ctx.save();
   ctx.font = '700 14px Heebo, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(36,31,58,.35)';
-  roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  roundRect(bx + 3, by + 3, Math.max(bh - 6, (bw - 6) * t), bh - 6, (bh - 6) / 2); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(String(n), bx - 22, by + bh / 2 + 1);
-  ctx.fillText(String(n + 1), bx + bw + 26, by + bh / 2 + 1);
+  if (game.mode === 'endless') {
+    const m = Math.max(0, Math.round(game.endlessDist / 50));
+    ctx.font = '900 26px Heebo, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(m + ' מ׳', W / 2, by + 8);
+    ctx.font = '700 12px Heebo, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.8)';
+    ctx.fillText('שיא: ' + Math.max(store.endlessBest, m) + ' מ׳', W / 2, by + 30);
+  } else {
+    const label = game.mode === 'daily' ? 'יומי' : String(game.levelIndex + 1);
+    const next = game.mode === 'daily' ? null : String(game.levelIndex + 2);
+    const t = Math.max(0, Math.min(1, (p.x - game.levelStartX) / (game.level.finishX - game.levelStartX)));
+    ctx.fillStyle = 'rgba(36,31,58,.35)';
+    roundRect(bx, by, bw, bh, bh / 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    roundRect(bx + 3, by + 3, Math.max(bh - 6, (bw - 6) * t), bh - 6, (bh - 6) / 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, bx - 22, by + bh / 2 + 1);
+    if (next) ctx.fillText(next, bx + bw + 26, by + bh / 2 + 1);
+    else {
+      // daily goal marker: drawn finish flag (no emoji font dependency)
+      const fx = bx + bw + 20, fy = by + bh / 2;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx, fy - 10); ctx.lineTo(fx, fy + 8); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.moveTo(fx, fy - 10); ctx.lineTo(fx + 11, fy - 6.5); ctx.lineTo(fx, fy - 3); ctx.closePath(); ctx.fill();
+    }
+  }
+  // perfect-release streak chip, under the center meter
+  if (game.perfectStreak >= 2) {
+    ctx.font = '900 13px Heebo, sans-serif';
+    ctx.fillStyle = '#7bf2a8';
+    ctx.fillText('מושלם x' + game.perfectStreak, W / 2, by + (game.mode === 'endless' ? 60 : 32));
+  }
   // run points counter, top right (apple chip + total below)
   const sx = W - 34, sy = narrow ? 90 : 26;
   ctx.drawImage(fruitSprite('apple'), sx - 13, sy - 13, 26, 26);
@@ -1056,6 +1465,7 @@ function frame(ts) {
   }
   const playing = game.state === 'play' || game.state === 'clearing' || game.state === 'failing';
   if (playing) {
+    growEndless();
     game.world.update(game.state === 'play' || game.state === 'clearing' ? dt * tScale : 0);
     game.particles.update(dt * tScale);
     for (const r of game.rings) r.t += dt * tScale;
@@ -1063,9 +1473,21 @@ function frame(ts) {
     /* events -> juice */
     for (const ev of game.world.drainEvents()) {
       const p = game.world.player;
-      if (ev.type === 'attach') { game.particles.attach(ev.x, ev.y, { count: 8 }); sfx.attach(); game.shake = Math.max(game.shake, 1.5); }
+      if (ev.type === 'attach') {
+        game.particles.attach(ev.x, ev.y, { count: 8 });
+        game.hookStreak++;
+        sfx.attachNote(game.hookStreak);
+        game.shake = Math.max(game.shake, 1.5);
+      }
       else if (ev.type === 'release') { sfx.release(); }
-      else if (ev.type === 'pad') { game.particles.land(p.x, p.y + 14, { count: 14 }); sfx.pad(); game.shake = Math.max(game.shake, 4); }
+      else if (ev.type === 'anchorbreak' || ev.type === 'anchoroff') {
+        sfx.release();
+        game.particles.confetti(p.x, p.y - 30, { count: 10, spread: 120 });
+        game.pops.push({ x: p.x, y: p.y - 80, t: 0, txt: ev.type === 'anchorbreak' ? 'הוו נשבר!' : 'הוו נכבה!', col: '#ffb0a0' });
+        game.shake = Math.max(game.shake, 3);
+      }
+      else if (ev.type === 'pad') { game.particles.land(p.x, p.y + 14, { count: 14 }); sfx.pad(); game.shake = Math.max(game.shake, 4); buzz(12); }
+      else if (ev.type === 'terrain') { game.hookStreak = 0; }
       else if (ev.type === 'jump') { game.particles.land(p.x, p.y + 12, { count: 10 }); }
     }
     /* motion trail: swinging fast or flying fast */
@@ -1074,7 +1496,23 @@ function frame(ts) {
     if ((st.rope && spd > 260) || spd > 520) {
       game.particles.trail(st.player.x, st.player.y, st.player.vx, st.player.vy, { count: 1 });
     }
-    if (game.state === 'play') game.playTime += dt;
+    if (game.state === 'play') {
+      game.playTime += dt;
+      if (game.mode === 'endless') {
+        game.endlessDist = Math.max(game.endlessDist, game.world.player.x - game.levelStartX);
+      }
+      // best-run ghost: sample the current run at 20Hz (x, y, anchor index)
+      if (game.ghostRec) {
+        game.ghostT += dt;
+        while (game.ghostT >= 0.05) {
+          game.ghostT -= 0.05;
+          const gp = game.world.player;
+          const gr = game.world.rope;
+          game.ghostRec.push([Math.round(gp.x), Math.round(gp.y), gr ? game.world.anchors.indexOf(gr.anchor) : -1]);
+          if (game.ghostRec.length > 2400) game.ghostRec.shift();
+        }
+      }
+    }
     game.shake *= Math.exp(-5 * dt);
     if (game.shake < 0.05) game.shake = 0;
     const p = game.world.player;
@@ -1109,8 +1547,8 @@ function frame(ts) {
       game.failTimer -= dt;
       if (game.failTimer <= 0) {
         ui.fail.classList.remove('show');
-        buildWorld();
-        game.state = 'play';
+        if (game.mode === 'endless') setState('clear');
+        else { buildWorld(); game.state = 'play'; }
       }
     }
   }
@@ -1158,17 +1596,86 @@ function render() {
     ctx.restore();
   }
 
+  drawWinds();
   drawFinish(L);
   drawRings();
   drawPads(L);
   drawFruits();
   drawPops();
+  drawGhost();
 
   const rope = st.rope;
-  for (const a of L.anchors) {
+  const perfect = game.state === 'play' && perfectNow();
+  const catchR = game.world.options.catchRadius;
+  for (const a of game.world.anchors) {
+    // off-screen cull (endless worlds grow long)
+    if (a.x < cam.x - W || a.x > cam.x + W) continue;
     const d = Math.hypot(a.x - st.player.x, a.y - st.player.y);
-    const inRange = d <= 390;
+    const inRange = d <= catchR;
+    const enabled = a.enabled !== false;
+    // rails/orbits under moving anchors
+    const base = a._orig;
+    if (a.move && base) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      if (a.move.rx !== undefined || a.move.ry !== undefined) {
+        ctx.setLineDash([4, 8]);
+        ctx.beginPath(); ctx.ellipse(base.x, base.y, a.move.rx || 0, a.move.ry || 0, 0, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.setLineDash([2, 9]);
+        ctx.beginPath(); ctx.moveTo(base.x - (a.move.dx || 0), base.y - (a.move.dy || 0)); ctx.lineTo(base.x + (a.move.dx || 0), base.y + (a.move.dy || 0)); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.save();
+    if (!enabled) ctx.globalAlpha = 0.25;
+    if (a.breakAfter && a._holdT > a.breakAfter * 0.45) {
+      // shake harder as the hook is about to snap
+      const f = a._holdT / a.breakAfter;
+      ctx.translate((Math.random() - 0.5) * 6 * f, (Math.random() - 0.5) * 6 * f);
+    }
     V.drawAnchor(ctx, { x: a.x, y: a.y, inRange, active: !!(rope && rope.anchorId === a.id), time: game.time, colors: COLORS });
+    ctx.restore();
+    if (a.breakAfter) {
+      // cracked-hook marker + hold-time arc
+      ctx.save();
+      ctx.strokeStyle = 'rgba(36,31,58,.6)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(a.x - 3, a.y - 8); ctx.lineTo(a.x + 1, a.y - 2); ctx.lineTo(a.x - 2, a.y + 3); ctx.stroke();
+      if (a._holdT > 0) {
+        ctx.strokeStyle = '#ff8a5c'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(a.x, a.y, 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, a._holdT / a.breakAfter)); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (a.toggle) {
+      // on-phase ring
+      ctx.save();
+      const per = Math.max(0.3, a.toggle.period || 2.5);
+      const u = (((game.world.time + (a.toggle.phase || 0)) % per) + per) % per;
+      const duty = a.toggle.duty === undefined ? 0.5 : a.toggle.duty;
+      ctx.strokeStyle = enabled ? 'rgba(140,240,190,.8)' : 'rgba(255,255,255,.4)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(a.x, a.y, 17, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (u / per)); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  if (perfect) {
+    // green halo: the release moment is now
+    const hp = st.player;
+    const pulse = 1 + 0.12 * Math.sin(game.time * 14);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(87,232,143,.9)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(hp.x, hp.y, 34 * pulse, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(hp.x, hp.y, 40 * pulse, 0, Math.PI * 2); ctx.stroke();
+    if (rope) {
+      const ra = game.world.anchors.find(a => a.id === rope.anchorId);
+      if (ra) {
+        ctx.strokeStyle = 'rgba(87,232,143,.95)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(ra.x, ra.y, 20, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   const p = st.player;
@@ -1200,8 +1707,18 @@ function render() {
 /* ---------- boot ---------- */
 applySkin();
 resize();
-loadLevel(store.level - 1);
-setState('menu');
+(function boot() {
+  const q = new URLSearchParams(location.search);
+  const d = q.get('daily');
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= dayKey()) {
+    game.results = null;
+    loadDaily(d);
+    setState('intro');
+  } else {
+    loadLevel(store.level - 1);
+    setState('menu');
+  }
+})();
 requestAnimationFrame(frame);
 
 // Only the main menu is disposable. Intro, pause and results stay untouched.
@@ -1214,6 +1731,17 @@ window.__game = {
   get levelIndex() { return game.levelIndex; },
   levels: LEVELS,
   startLevel, beginPlay, win, fail,
+  startDaily, startEndless,
+  perfectNow,
+  get mode() { return game.mode; },
+  get dailyKey() { return game.dailyKey; },
+  get endlessDist() { return game.endlessDist; },
+  get endlessSeed() { return game.endlessSeed; },
+  get perfectStreak() { return game.perfectStreak; },
+  get hookStreak() { return game.hookStreak; },
+  get ghostData() { return game.ghostData; },
+  get ghostRec() { return game.ghostRec; },
+  get winds() { return game.world ? game.world.winds : []; },
   setHeld: b => { pointerHeld = !!b; game.world.setHeld(!!b); },
   renderFrame: () => render(),
   get runPts() { return game.runPts; },
