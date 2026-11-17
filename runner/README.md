@@ -33,3 +33,7 @@ npm test
 - `window.__runner`: read-only snapshot getter for QA. No state injection/teleport controls. `?autopause=0` disables the 750ms frame-stall watchdog for software-GL test environments only.
 
 Release QA additionally included independent natural-touch level 1 completion/death/retry, swipes, character purchases and persistence. Automated mobile emulation is not physical-device testing.
+
+## Adventure additions
+
+Choose the left rooftop ramp or jump into the right zipline. Tap jump again in the air for a flip (bunny uses its double jump first). A landed flip grants one combo point; only the first five landed flips per run grant 3 coins each, never multiplied, capped at 15 coins per run. Skateboards add speed and absorb one hit; down brakes. Pogo sticks bounce automatically; down temporarily stops bouncing. Each vehicle lasts seven seconds. Zen practice never writes currency, missions, collectibles, unlocks or personal bests. Daily word hunt and monthly City Lights prizes are fixed; see COLLECTIONS.md. Personal-best signs use the prior distance for the same level or dated daily route.

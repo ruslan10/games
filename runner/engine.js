@@ -47,7 +47,7 @@ class Run{
   this.magnet=0;this.shoes=0;this.flight=0;this.invincible=0;this.chaser=0;
   this.comboN=0;this.mult=1;this.maxMult=1;this.maxStreak=0;this.airJumps=this.char.ability==='double'?1:0;
   this.revived=false;this.caught=false;this.coinMul=opts.coinMul||1;
-  this.events=[];this.hits=0;this.zen=!!opts.zen;this.ground=0;this.route=null;this.zip=0;this.vehicle=null;this.vehicleTime=0;this.brake=0;this.trickTime=0;this.trickReady=false;this.trickRotation=0;this.tricks=0;}
+  this.events=[];this.hits=0;this.zen=!!opts.zen;this.ground=0;this.route=null;this.zip=0;this.vehicle=null;this.vehicleTime=0;this.brake=0;this.trickTime=0;this.trickReady=false;this.trickRotation=0;this.tricks=0;this.trickCoins=0;}
  move(dir){if(!dir)return;if(this.status==='playing')this.lane=Math.max(-1,Math.min(1,this.lane+dir));}
  jump(){if(this.status!=='playing'||this.flight>0)return false;
   if(this.y<=this.ground+.02&&this.vy<=0){this.vy=this.vehicle==='pogo'?13:this.shoes>0?12.5+(this.char.ability==='jump'?.8:0):this.jumpV;this.slide=0;this.events.push({type:'jump'});return true;}
@@ -79,7 +79,7 @@ class Run{
   if(this.zip>0){this.y=2.6;this.vy=0;}
   else if(this.flight>0){this.flight=Math.max(0,this.flight-dt);this.y+=(3.4-this.y)*Math.min(1,dt*5);this.vy=0;
    if(this.flight===0){this.invincible=Math.max(this.invincible,.8);this.events.push({type:'flightend'});}}
-  else{this.vy-=24*dt;this.y=Math.max(this.ground,this.y+this.vy*dt);if(this.y===this.ground){this.vy=0;this.airJumps=this.char.ability==='double'?1:0;if(wasAir){if(this.trickReady){this.tricks++;for(let i=0;i<4;i++)this._comboPoint();if(!this.zen)this.coins+=8*this.mult;this.events.push({type:'trick-land'});}else if(this.trickTime>0)this.events.push({type:'trick-miss'});this.trickReady=false;this.trickTime=0;this.trickRotation=0;}if(this.vehicle==='pogo'&&this.brake<=0&&this.slide<=0){this.vy=9.8;}}}
+  else{this.vy-=24*dt;this.y=Math.max(this.ground,this.y+this.vy*dt);if(this.y===this.ground){this.vy=0;this.airJumps=this.char.ability==='double'?1:0;if(wasAir){if(this.trickReady){this.tricks++;this._comboPoint();const reward=!this.zen&&this.tricks<=5?3:0;this.coins+=reward;this.trickCoins+=reward;this.events.push({type:'trick-land',coins:reward});}else if(this.trickTime>0)this.events.push({type:'trick-miss'});this.trickReady=false;this.trickTime=0;this.trickRotation=0;}if(this.vehicle==='pogo'&&this.brake<=0&&this.slide<=0){this.vy=9.8;}}}
   this.slide=Math.max(0,this.slide-dt);this.magnet=Math.max(0,this.magnet-dt);this.shoes=Math.max(0,this.shoes-dt);
   this.invincible=Math.max(0,this.invincible-dt);this.chaser=Math.max(0,this.chaser-dt);
   for(const c of this.level.coins){if(c.taken)continue;
