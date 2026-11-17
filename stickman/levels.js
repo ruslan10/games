@@ -310,17 +310,25 @@ function addObstacles(L, idx) {
     const pat = (k + idx) % 4;
     if (!dense && k % 2 === 0) continue;
     if (pat === 0) {
-      // wall hanging from the ceiling: face looks backward (-x)
-      out.push({ id: 'ow' + k, kind: 'trampWall', x1: mx, y1: top + 190, x2: mx, y2: -420,
+      // wall hanging from the ceiling: face looks backward (-x).
+      // When the next anchor sits far below, top+190 would leave only ~20px of
+      // clear air above the catch point: swings and high catches smack the wall
+      // near/above the top edge of the screen (reads as an invisible wall) and
+      // the back-bounce loops. Keep a real corridor over the lower anchor.
+      const low = Math.max(a.y, b.y);
+      const bot = low - top > 150 ? Math.min(top + 190, low - 130) : top + 190;
+      out.push({ id: 'ow' + k, kind: 'trampWall', x1: mx, y1: bot, x2: mx, y2: -420,
         restitution: 0.9, minSpeed: 430, boostX: 0, boostY: 0 });
     } else if (pat === 1) {
       // plate under the ceiling: bounces the hero down
       out.push({ id: 'oc' + k, kind: 'trampCeil', x1: mx + 130, y1: top - 20, x2: mx - 130, y2: top - 20,
         restitution: 0.9, minSpeed: 320, boostX: 0, boostY: 0 });
     } else if (pat === 3 && idx >= 8 && k % 4 === 3) {
-      // post standing from the ground: slanted face kicks back and up
+      // post standing from the ground: slanted face pops the hero up-forward
+      // more than straight back, so clipping it lofts you over instead of
+      // flinging you back into the previous hook (which looped forever).
       out.push({ id: 'op' + k, kind: 'trampWall', x1: mx, y1: 1200, x2: mx, y2: top + 500,
-        nx: -0.8, ny: -0.6, restitution: 0.9, minSpeed: 520, boostX: 0, boostY: 0 });
+        nx: -0.65, ny: -0.75, restitution: 0.9, minSpeed: 520, boostX: 0, boostY: 0 });
     }
   }
   L.pads = L.pads.concat(out);
