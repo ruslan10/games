@@ -16,7 +16,7 @@ const server=http.createServer((req,res)=>{let f=path.join(root,req.url.split('?
    for(let i=0;i<6;i++){
     const st=await p.evaluate(()=>MonsterLab.getState());
     assert.equal(await p.evaluate(()=>MonsterLabVoice.explain()),null,`${mode} b${band} q${i}: no explanation before answer`);
-    if(mode==='feed'){const t=st.q.target;for(let k=0;k<Math.floor(t/10);k++)await p.locator('[data-step="ten:1"]').click();for(let k=0;k<t%10;k++)await p.locator('[data-step="one:1"]').click()}
+    if(mode==='feed'){const t=st.q.target;for(let k=0;k<Math.floor(t/10);k++)await p.locator('#srcRod').click();for(let k=0;k<t%10;k++)await p.locator('#srcCube').click()}
     else if(mode==='machine')await p.locator(`[data-choice="${st.q.opts.findIndex(o=>o.op+o.k===st.q.answer)}"]`).click();
     else if(st.q.kind==='compare')await p.locator(`[data-choice="${st.q.answer}"]`).click();
     else for(let k=0;k<st.q.answer;k++)await p.locator(`[data-slice="${k}"]`).click();

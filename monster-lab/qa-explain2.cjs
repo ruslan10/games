@@ -15,8 +15,8 @@ const server=http.createServer((req,res)=>{let f=path.join(root,req.url.split('?
   const T=Number(t);await p.evaluate(T=>{const q=MonsterLab.getState().q;q.target=T;delete q.a;delete q.v},T);
   await p.evaluate(()=>MonsterLab.getState()); // re-render to reflect target
   await p.locator('#reset').click();
-  for(let k=0;k<Math.floor(T/10);k++)await p.locator('[data-step="ten:1"]').click();
-  for(let k=0;k<T%10;k++)await p.locator('[data-step="one:1"]').click();
+  for(let k=0;k<Math.floor(T/10);k++)await p.locator('#srcRod').click();
+  for(let k=0;k<T%10;k++)await p.locator('#srcCube').click();
   await p.locator('#check').click();
   const x=await p.evaluate(()=>MonsterLabVoice.explain());
   assert.deepEqual(x,want,'feed '+t);
