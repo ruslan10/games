@@ -31,14 +31,50 @@ function render(){const focused=document.activeElement;const focusAttr=['data-st
  document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{if(g.done)return;let [key,d]=b.dataset.step.split(':');g[key]=Math.max(0,Math.min(key==='ten'?15:9,g[key]+Number(d)));g.feedback='';render()});document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{if(g.done)return;g.selected=Number(b.dataset.choice);g.feedback='';render()});document.querySelectorAll('[data-slice]').forEach(b=>{const toggle=()=>{if(g.done)return;let i=Number(b.dataset.slice);g.colored.has(i)?g.colored.delete(i):g.colored.add(i);g.feedback='';render()};b.addEventListener('click',toggle);b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();document.querySelector(`[data-slice="${b.dataset.slice}"]`)?.focus()}})});bindFeed();if(focusAttr)document.querySelector(`[${focusAttr}="${focusValue}"]`)?.focus({preventScroll:true});mount3D();}
 function mount3D(){const el=document.querySelector(screen==='home'?'.hero':'.scene');if(el)window.Lab3D?.attach(el,screen==='home'?'hero':screen==='times'?'times':game?.mode);if(game?.done)window.Lab3D?.react(game.mode==='feed'?'feed':'success');else if(game?.feedbackType==='error')window.Lab3D?.react('error')}
 window.addEventListener('lab3d-ready',mount3D);
-function heading(){const g=game,q=g.q;if(g.mode==='feed')return `<h2>${q.a?'בנו את המכפלה':'בנו את המספר'} <span class="target">${q.a?q.a+' × '+q.v:q.target}</span></h2><p class="instruction">${q.a?`בובו רוצה ${q.a} קבוצות של ${q.v} קוביות. חשבו ובנו.`:'<b>מה עושים:</b> מוט אחד שווה 10 קוביות. גררו מוטות וקוביות למגש, או הקישו עליהם, עד שיהיו על המגש בדיוק כמה שבובו ביקש.'}</p>`;if(g.mode==='machine')return '<h2>איזו פעולה עושה המכונה?</h2><p class="instruction"><b>מה עושים:</b> בכל שורה מספר נכנס למכונה ומספר אחר יוצא. לחצו על הפעולה שהופכת את הנכנס ליוצא בשתי השורות הראשונות. תראו מיד מה היא עושה בכל שורה, ואז לחצו ״לבדוק את הכלל״.</p>';return q.kind==='build'?'<h2>צבעו אותה כמות</h2><p class="instruction">לחצו על פרוסות בפיצה הימנית, עד שיהיו שוות לכמות שבשמאל.</p>':'<h2>משווים בין שני שברים</h2><p class="instruction"><b>מה עושים:</b> שתי הפיצות באותו גודל. כמה שטח צבוע בכל אחת? בחרו אם השבר השמאלי קטן יותר, שווה, או גדול יותר מהימני. לפעמים הם שווים.</p>'}
+function heading(){const g=game,q=g.q;if(g.mode==='feed')return `<h2>${q.a?'בנו את המכפלה':'בנו את המספר'} <span class="target">${q.a?q.a+' × '+q.v:q.target}</span></h2><p class="instruction">${q.a?`בובו רוצה ${q.a} קבוצות של ${q.v} קוביות. חשבו ובנו.`:'<b>מה עושים:</b> מוט אחד שווה 10 קוביות. גררו מוטות וקוביות לסל, או הקישו עליהם, עד שיהיו בסל בדיוק כמה שבובו ביקש.'}</p>`;if(g.mode==='machine')return '<h2>איזו פעולה עושה המכונה?</h2><p class="instruction"><b>מה עושים:</b> בכל שורה מספר נכנס למכונה ומספר אחר יוצא. לחצו על הפעולה שהופכת את הנכנס ליוצא בשתי השורות הראשונות. תראו מיד מה היא עושה בכל שורה, ואז לחצו ״לבדוק את הכלל״.</p>';return q.kind==='build'?'<h2>צבעו אותה כמות</h2><p class="instruction">לחצו על פרוסות בפיצה הימנית, עד שיהיו שוות לכמות שבשמאל.</p>':'<h2>משווים בין שני שברים</h2><p class="instruction"><b>מה עושים:</b> שתי הפיצות באותו גודל. כמה שטח צבוע בכל אחת? בחרו אם השבר השמאלי קטן יותר, שווה, או גדול יותר מהימני. לפעמים הם שווים.</p>'}
 function blocks(t,o){return `<div class="blocks">${Array.from({length:t},()=>'<span class="rod" aria-label="עשר קוביות">'+('<i class="cube"></i>'.repeat(10))+'</span>').join('')}</div><div class="blocks">${'<i class="cube one"></i>'.repeat(o)}</div>`}
+const BASKET_DEFS=`<defs>
+<pattern id="wv" width="16" height="16" patternUnits="userSpaceOnUse">
+<rect width="16" height="16" fill="#8a5a2e"/>
+<path d="M-4,4 L4,-4 M0,16 L16,0 M12,20 L20,12" stroke="#6b4220" stroke-width="6" fill="none"/>
+<path d="M-4,12 L4,20 M0,0 L16,16 M12,-4 L20,4" stroke="#9c6a38" stroke-width="6" fill="none"/>
+</pattern>
+<radialGradient id="mouth" cx="0.5" cy="0.25" r="0.9">
+<stop offset="0" stop-color="#3d2712"/><stop offset="0.7" stop-color="#221204"/><stop offset="1" stop-color="#120a02"/>
+</radialGradient>
+<linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#00000000"/><stop offset="1" stop-color="#2a1606aa"/>
+</linearGradient>
+<radialGradient id="fsh" cx="0.5" cy="0.5" r="0.5">
+<stop offset="0" stop-color="#00000088"/><stop offset="0.75" stop-color="#00000044"/><stop offset="1" stop-color="#00000000"/>
+</radialGradient>
+</defs>`;
+const BASKET_BACK=`<svg class="bk bk-back" viewBox="0 0 360 100" aria-hidden="true">${BASKET_DEFS}
+<ellipse cx="180" cy="30" rx="166" ry="22" fill="url(#mouth)"/>
+<path d="M20,32 A160 19 0 0 1 340,32" fill="none" stroke="#00000088" stroke-width="7"/>
+<path d="M22,31 A160 19 0 0 1 338,31" fill="none" stroke="#00000055" stroke-width="3"/>
+<path d="M14,30 A166 22 0 0 1 346,30" fill="none" stroke="#7a4a22" stroke-width="11" stroke-linecap="round"/>
+<path d="M14,30 A166 22 0 0 1 346,30" fill="none" stroke="#b07a45" stroke-width="7" stroke-linecap="round"/>
+<path d="M16,28 A166 22 0 0 1 344,28" fill="none" stroke="#d9a86a" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
+const BASKET_FRONT=`<svg class="bk bk-front" viewBox="0 0 360 100" aria-hidden="true">${BASKET_DEFS}
+<ellipse cx="180" cy="95" rx="150" ry="9" fill="url(#fsh)"/>
+<path d="M14,28 A166 22 0 0 0 346,28 C352,44 344,72 326,86 Q180,102 34,86 C16,72 8,44 14,28 Z" fill="url(#wv)"/>
+<path d="M14,28 A166 22 0 0 0 346,28 C352,44 344,72 326,86 Q180,102 34,86 C16,72 8,44 14,28 Z" fill="url(#shade)"/>
+<path d="M14,34 A166 22 0 0 0 346,34" fill="none" stroke="#00000055" stroke-width="6"/>
+<path d="M14,30 A166 22 0 0 0 346,30" fill="none" stroke="#7a4a22" stroke-width="11" stroke-linecap="round"/>
+<path d="M14,30 A166 22 0 0 0 346,30" fill="none" stroke="#a9713f" stroke-width="7" stroke-linecap="round"/>
+<path d="M16,27.5 A166 22 0 0 0 344,27.5" fill="none" stroke="#d9a86a" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
 function feedUI(){const g=game,q=g.q,total=g.ten*10+g.one;
- const slot=total<q.target?'<span class="slot-ghost cube-shape" id="traySlot" aria-hidden="true"></span>':'';
- const rods=Array.from({length:g.ten},()=>'<button type="button" class="rod tray-item" data-rm="ten" aria-label="החזרת מוט של 10 למלאי">'+('<i class="cube"></i>'.repeat(10))+'</button>').join('');
- const cubes=Array.from({length:g.one},()=>'<button type="button" class="cube one tray-item" data-rm="one" aria-label="החזרת קובייה למלאי"></button>').join('');
- const inner=g.ten+g.one?`<div class="blocks">${rods}</div><div class="blocks">${cubes}${slot}</div>`:`<div class="blocks"><p class="muted" style="font-size:14px;margin:0">המגש ריק. נוסיף קצת אנרגיה?</p>${slot}</div>`;
- return `<div class="tray feed-tray" id="feedTray" role="group" aria-label="המגש: ${total} קוביות מתוך ${q.target}">${inner}</div><div class="counter">על המגש <b>${total}</b> מתוך <b>${q.target}</b> · ${total===q.target?'בדיוק!':total<q.target?'חסרות '+(q.target-total):'יש יותר ב־'+(total-q.target)}</div><div class="big-sources">${[['ten','מוט · 10','srcRod','מוט של 10 קוביות'],['one','קובייה · 1','srcCube','קובייה אחת']].map(([k,label,id,aria])=>`<button type="button" class="big-src" id="${id}" data-add="${k}" aria-label="הוספת ${aria}: גררו למגש או הקישו" ${g.done||g[k]===(k==='ten'?15:9)?'disabled':''}>${k==='ten'?`<span class="rod" aria-hidden="true">${'<i class="cube"></i>'.repeat(10)}</span>`:'<i class="cube one" aria-hidden="true"></i>'}<span>${label}<small>גררו למגש · או הקישו</small></span></button>`).join('')}</div><div class="return-note">↩ להחזרה: הקישו על פריט במגש, או גררו אותו החוצה</div>`}
+ const rods=Array.from({length:g.ten},(_,i)=>'<button type="button" class="rod tray-item r'+(i+1)+'" data-rm="ten" aria-label="החזרת מוט של 10 למלאי">'+('<i class="cube"></i>'.repeat(10))+'</button>').join('');
+ const cubes=Array.from({length:g.one},(_,i)=>'<button type="button" class="cube one tray-item c'+(i+1)+'" data-rm="one" aria-label="החזרת קובייה למלאי"></button>').join('');
+ const hint=g.ten+g.one?'':'<p class="basket-hint">הסל ריק. נוסיף קצת אנרגיה?</p>';
+ const fam=g.one===0?' rods-only':g.ten>3?' pile-grid':g.one<3?' pile-few':'';
+ let h=1;
+ if(g.one===0)h=g.ten>14?4:g.ten>12?3:g.ten>10?2:1;
+ else if(g.ten>3)h=g.ten>14?5:g.ten>12?4:g.ten>10?3:g.ten>8?2:1;
+ return `<div class="tray feed-tray pile-h${h}${fam}" id="feedTray" role="group" aria-label="הסל: ${total} קוביות מתוך ${q.target}">${BASKET_BACK}${rods}${cubes}${hint}${BASKET_FRONT}</div><div class="counter">בסל <b>${total}</b> מתוך <b>${q.target}</b> · ${total===q.target?'בדיוק!':total<q.target?'חסרות '+(q.target-total):'יש יותר ב־'+(total-q.target)}</div><div class="big-sources">${[['ten','מוט · 10','srcRod','מוט של 10 קוביות'],['one','קובייה · 1','srcCube','קובייה אחת']].map(([k,label,id,aria])=>`<button type="button" class="big-src" id="${id}" data-add="${k}" aria-label="הוספת ${aria}: גררו לסל או הקישו" ${g.done||g[k]===(k==='ten'?15:9)?'disabled':''}>${k==='ten'?`<span class="rod" aria-hidden="true">${'<i class="cube"></i>'.repeat(10)}</span>`:'<i class="cube one" aria-hidden="true"></i>'}<span>${label}<small>גררו לסל · או הקישו</small></span></button>`).join('')}</div><div class="return-note">↩ להחזרה: הקישו על פריט בסל, או גררו אותו החוצה</div>`}
 function bindFeed(){const g=game;if(!g||g.mode!=='feed'||g.lesson)return;const tray=document.getElementById('feedTray');if(!tray)return;
  const slot=document.getElementById('traySlot');
  const overTray=e=>{const r=tray.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom};
@@ -74,7 +110,7 @@ function explanation(){const g=game,q=g.q;if(g.mode==='feed')return `<span class
 
 
 function lessonUI(){const g=game;const tag='<div class="lesson-tag">דוגמה מודרכת · בלי ניקוד</div>';let body='';
- if(g.mode==='feed')body=`<h2>מוט אחד = 10 קוביות</h2><div class="demo-row" dir="ltr"><span class="rod pulse">${'<i class="cube"></i>'.repeat(10)}</span><b>=</b><span class="blocks">${'<i class="cube one"></i>'.repeat(10)}</span></div><ol class="steps"><li>בובו מבקש <span class="math">27</span> קוביות.</li><li>עשרות: <span class="math">27 = 20 + 7</span>, אז לוקחים <b>2 מוטות</b>.</li><li>יחידות: עוד <b>7 קוביות</b> בודדות.</li></ol>${blocks(2,7)}<div class="eq-line"><span class="math">2 × 10 + 7 = 27</span></div><p class="instruction">עכשיו תורכם: תקבלו מספר ותבנו אותו עם מוטות וקוביות. המגש יראה כמה חסר.</p>`;
+ if(g.mode==='feed')body=`<h2>מוט אחד = 10 קוביות</h2><div class="demo-row" dir="ltr"><span class="rod pulse">${'<i class="cube"></i>'.repeat(10)}</span><b>=</b><span class="blocks">${'<i class="cube one"></i>'.repeat(10)}</span></div><ol class="steps"><li>בובו מבקש <span class="math">27</span> קוביות.</li><li>עשרות: <span class="math">27 = 20 + 7</span>, אז לוקחים <b>2 מוטות</b>.</li><li>יחידות: עוד <b>7 קוביות</b> בודדות.</li></ol>${blocks(2,7)}<div class="eq-line"><span class="math">2 × 10 + 7 = 27</span></div><p class="instruction">עכשיו תורכם: תקבלו מספר ותבנו אותו עם מוטות וקוביות. הסל יראה כמה חסר.</p>`;
  else if(g.mode==='machine'){const [op,k,ins]=[['+',2,[3,6]],['×',3,[2,4]],['×',4,[3,5]]][band];body=`<h2>מכונה אחת, פעולה אחת</h2><div class="machine-table"><span class="heading">נכנס</span><span></span><span class="heading">יוצא</span>${ins.map(x=>`<span class="number">${x}</span><span class="arrow"><small class="math">${op}${k}</small>→</span><span class="number ok">${apply(op,k,x)}<small class="math">✓</small></span>`).join('')}</div><ol class="steps"><li>שורה ראשונה: נכנס <span class="math">${ins[0]}</span>, יוצא <span class="math">${apply(op,k,ins[0])}</span>.</li><li>איזו פעולה הופכת <span class="math">${ins[0]}</span> ל־<span class="math">${apply(op,k,ins[0])}</span>? <span class="math">${ins[0]} ${op} ${k} = ${apply(op,k,ins[0])}</span></li><li>בודקים בשורה השנייה: <span class="math">${ins[1]} ${op} ${k} = ${apply(op,k,ins[1])}</span> ✓. אותה פעולה בכל שורה.</li></ol>${operationVisual({op,k,ins})}<p class="instruction">עכשיו תורכם: תלחצו על פעולה, תראו מה היא עושה בכל שורה, ותבדקו.</p>`}
  else body=`<h2>איך קוראים שבר?</h2><div class="fraction-area"><div class="fraction-card" style="max-width:150px">${pie(3,4)}</div></div><ol class="steps"><li><b>למטה</b> (מכנה): לכמה חלקים שווים חילקו את הפיצה. כאן <span class="math">4</span>.</li><li><b>למעלה</b> (מונה): כמה חלקים צבועים. כאן <span class="math">3</span>.</li><li>השבר <span class="math">3/4</span> הוא שלושה חלקים צבועים מתוך ארבעה.</li></ol><div class="fraction-area" style="gap:8px"><div class="fraction-card">${pie(1,4)}<span class="frac">1/4</span></div><span class="operator" style="font-size:20px">קטן מ</span><div class="fraction-card">${pie(3,4)}<span class="frac">3/4</span></div></div><p class="instruction">אותו גודל פיצה, יותר שטח צבוע = שבר גדול יותר. לפעמים שני שברים שונים מכסים אותו שטח, והם <b>שווים</b>.</p>`;
  return `<div>${tag}${body}</div><button class="primary check" id="lessonGo">הבנתי, מתחילים ←</button>`}

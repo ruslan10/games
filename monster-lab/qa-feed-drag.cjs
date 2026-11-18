@@ -30,13 +30,13 @@ let sc=await center('#srcRod'),tc=await center('#feedTray');
 await page.mouse.move(sc.x,sc.y);await page.mouse.down();
 await page.mouse.move((sc.x+tc.x)/2,(sc.y+tc.y)/2,{steps:6});
 await page.mouse.move(tc.x,tc.y,{steps:4});
-let mid=await page.evaluate(()=>({hi:document.getElementById('feedTray').classList.contains('drop-hi'),slot:document.getElementById('traySlot').className,ghost:!!document.querySelector('.drag-ghost')}));
-assert(mid.hi,'tray highlights during drag');assert(mid.slot.includes('rod-shape'),'slot becomes rod-shape during rod drag');assert(mid.ghost,'ghost visible');
+let mid=await page.evaluate(()=>({hi:document.getElementById('feedTray').classList.contains('drop-hi'),ghost:!!document.querySelector('.drag-ghost')}));
+assert(mid.hi,'tray highlights during drag');assert(mid.ghost,'ghost visible');
 await page.screenshot({path:'/downloads/feed-drag-qa/mid-drag.png',fullPage:true});
 await page.mouse.up();
 t=await trayCount();assert.deepEqual(t,{rods:1,cubes:1},'drag adds rod');
-let after=await page.evaluate(()=>({hi:document.getElementById('feedTray').classList.contains('drop-hi'),slot:document.getElementById('traySlot').className,ghost:!!document.querySelector('.drag-ghost')}));
-assert(!after.hi&&!after.ghost&&after.slot.includes('cube-shape'),'state resets after drop');console.log('PASS drag rod into tray adds, highlight+slot+ghost lifecycle');
+let after=await page.evaluate(()=>({hi:document.getElementById('feedTray').classList.contains('drop-hi'),ghost:!!document.querySelector('.drag-ghost')}));
+assert(!after.hi&&!after.ghost,'state resets after drop');console.log('PASS drag rod into tray adds, highlight+ghost lifecycle');
 
 // 4. drag cube chip but release outside tray -> no add
 sc=await center('#srcCube');
@@ -60,7 +60,7 @@ t=await trayCount();assert.deepEqual(t,{rods:1,cubes:0},'release inside tray kee
 const tens=Math.floor(q.target/10),ones=q.target%10;
 for(let i=1;i<tens;i++)await page.locator('#srcRod').click();
 for(let i=0;i<ones;i++)await page.locator('#srcCube').click();
-const counter=await page.locator('.counter').textContent();assert(counter.includes('בדיוק'),'counter says exact');assert(await page.locator('#traySlot').count()===0,'no pulsing slot at exact count');
+const counter=await page.locator('.counter').textContent();assert(counter.includes('בדיוק'),'counter says exact');assert(counter.includes('בסל'),'counter uses basket wording');
 await page.screenshot({path:'/downloads/feed-drag-qa/exact.png',fullPage:true});
 await page.locator('#check').click();
 assert((await page.evaluate(()=>MonsterLab.getState())).done===true,'done after correct check');
