@@ -75,7 +75,37 @@ function feedUI(){const g=game,q=g.q,total=g.ten*10+g.one;
  if(g.one===0)h=g.ten>14?4:g.ten>12?3:g.ten>10?2:1;
  else if(g.ten>3)h=g.ten>14?5:g.ten>12?4:g.ten>10?3:g.ten>8?2:1;
  return `<div class="tray feed-tray pile-h${h}${fam}" id="feedTray" role="group" aria-label="הסל: ${total} קוביות מתוך ${q.target}">${BASKET_BACK}${rods}${cubes}${hint}${BASKET_FRONT}</div><div class="counter">בסל <b>${total}</b> מתוך <b>${q.target}</b> · ${total===q.target?'בדיוק!':total<q.target?'חסרות '+(q.target-total):'יש יותר ב־'+(total-q.target)}</div><div class="big-sources">${[['ten','מוט · 10','srcRod','מוט של 10 קוביות'],['one','קובייה · 1','srcCube','קובייה אחת']].map(([k,label,id,aria])=>`<button type="button" class="big-src" id="${id}" data-add="${k}" aria-label="הוספת ${aria}: גררו לסל או הקישו" ${g.done||g[k]===(k==='ten'?15:9)?'disabled':''}>${k==='ten'?`<span class="rod" aria-hidden="true">${'<i class="cube"></i>'.repeat(10)}</span>`:'<i class="cube one" aria-hidden="true"></i>'}<span>${label}<small>גררו לסל · או הקישו</small></span></button>`).join('')}</div><div class="return-note">↩ להחזרה: הקישו על פריט בסל, או גררו אותו החוצה</div>`}
-function bindFeed(){const g=game;if(!g||g.mode!=='feed'||g.lesson)return;const tray=document.getElementById('feedTray');if(!tray)return;
+function layoutFeed(){const tray=document.getElementById('feedTray');if(!tray)return;
+ const rods=[...tray.querySelectorAll('.rod.tray-item')],cubes=[...tray.querySelectorAll('.cube.one.tray-item')];if(!rods.length&&!cubes.length)return;
+ const W=tray.clientWidth,sc=Math.min(1,W/340),rw=rods[0]?rods[0].offsetWidth:127,rh=rods[0]?rods[0].offsetHeight:20,cw=36,floor=Math.round(54*sc);
+ // natural heap: rods pile up from the left/right/middle of the cavity, then cubes settle in front of them.
+ // A cube spot is only accepted if every rod keeps at least MINV of its 10 cells visible, otherwise the cube goes on top of the pile.
+ const hr=new Array(Math.ceil(W)+2).fill(0);let top=floor;const MINV=6;
+ const RT=[0,1,0.5,0.12,0.88,0.5,0.25,0.75],CT=[0.5,0.22,0.78,0.36,0.64,0.08,0.92,0.45,0.3];
+ const mx=(h,x,w)=>{let m=0;for(let i=x;i<x+w;i++)m=Math.max(m,h[i]);return m};
+ const inR=(px,py,b)=>{const t=b.a*Math.PI/180,dx=px-b.cx,dy=py-b.cy,lx=dx*Math.cos(t)+dy*Math.sin(t),ly=-dx*Math.sin(t)+dy*Math.cos(t);return Math.abs(lx)<=b.hw&&Math.abs(ly)<=b.hh};
+ const R=[],C=[];
+ rods.forEach((el,j)=>{const room=Math.max(0,W-48-rw),x=Math.round(24+room*RT[j%RT.length]);const rel=Math.max(0,mx(hr,x,rw)-5);for(let i=x;i<x+rw;i++)hr[i]=rel+rh;
+  const y=floor+rel,rot=(j%2?1:-1)*(2+((j*5)%7));top=Math.max(top,y+rh);
+  const s=el.style;s.left=x+'px';s.bottom=(y+5)+'px';s.transform='rotate('+rot+'deg)';s.translate='none';s.zIndex='3';
+  R.push({cx:x+rw/2,cy:y+5+rh/2,a:-rot,hw:rw/2,hh:rh/2})});
+ const vis=(r,i,extra)=>{const t=r.a*Math.PI/180;let v=0;for(let c=0;c<10;c++){const u=(c+0.5)*rw/10-rw/2,px=r.cx+u*Math.cos(t),py=r.cy+u*Math.sin(t);let hid=false;
+   for(let q=i+1;q<R.length&&!hid;q++)if(inR(px,py,R[q]))hid=true;
+   for(const cb of C)if(!hid&&inR(px,py,cb))hid=true;if(!hid&&extra&&inR(px,py,extra))hid=true;if(!hid)v++}return v};
+ const rodsOk=cb=>R.every((r,i)=>vis(r,i,cb)>=Math.min(MINV,vis(r,i,null)));
+ const ovl=cb=>{let o=0;for(const q of C){const ox=Math.min(cb.cx,q.cx+0)>-1e9?Math.max(0,2*cb.hw-Math.abs(cb.cx-q.cx)):0,oy=Math.max(0,2*cb.hh-Math.abs(cb.cy-q.cy));o=Math.max(o,Math.min(ox,2*cb.hw)*Math.min(oy,2*cb.hh)/(4*cb.hw*cb.hh))}return o};
+ const pileTop=Math.max(0,...hr);
+ cubes.forEach((el,j)=>{const room=Math.max(0,W-48-cw),tx=24+room*CT[j%CT.length],rot=(j%2?1:-1)*(4+((j*7)%10));let best=null;
+  for(let c=0;c<17;c++){const x=Math.round(24+room*c/16),mr=mx(hr,x,cw);
+   for(const rel of [0,mr*0.4,mr*0.7,mr,pileTop,pileTop+14]){const cb={cx:x+cw/2,cy:floor+rel+cw/2,a:-rot,hw:cw/2+1,hh:cw/2+1};const o=ovl(cb);if(o>0.3)continue;
+    if(!rodsOk(cb))continue;const score=rel+Math.abs(x-tx)*0.12+o*60;if(!best||score<best.score)best={x,rel,score,cb}}}
+  if(!best){let bo=9;for(let c=0;c<17;c++){const x=Math.round(24+room*c/16),rel=pileTop+cw*0.6;const cb={cx:x+cw/2,cy:floor+rel+cw/2,a:-rot,hw:cw/2+1,hh:cw/2+1},o=ovl(cb);if(o<bo){bo=o;best={x,rel,cb}}}}
+  C.push(best.cb);const y=floor+best.rel;top=Math.max(top,y+cw);const s=el.style;
+  s.left=best.x+'px';s.bottom=y+'px';s.transform='rotate('+rot+'deg)';s.translate='none';s.zIndex='5'});
+ tray.style.minHeight=Math.max(196,top+30)+'px';
+}
+window.addEventListener('resize',()=>layoutFeed());
+function bindFeed(){const g=game;if(!g||g.mode!=='feed'||g.lesson)return;const tray=document.getElementById('feedTray');if(!tray)return;layoutFeed();
  const slot=document.getElementById('traySlot');
  const overTray=e=>{const r=tray.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom};
  const slotShape=k=>{if(!slot)return;slot.classList.toggle('rod-shape',k==='ten');slot.classList.toggle('cube-shape',k!=='ten')};
@@ -319,3 +349,4 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)voiceStop()
 window.MonsterLabVoice={parts:voiceParts,explain:explainParts,stop:voiceStop,praise,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,src:vaud.src,pending:pendingPraise?pendingPraise.clip:null,pendingX:pendingPraise&&pendingPraise.x?pendingPraise.x.length:0})};
 home();
 })();
+

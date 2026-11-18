@@ -92,11 +92,11 @@ button.cube.tray-item{border-radius:2px}
 .tray.feed-tray .tray-item{position:absolute}
 .tray.feed-tray .rod.tray-item{z-index:3;background:linear-gradient(180deg,#1e5069,#102e42);box-shadow:0 0 14px #3fc5ff99,0 4px 8px #0009,0 1px 2px #000a}
 .tray.feed-tray .rod.tray-item:hover{background:linear-gradient(180deg,#27647f,#14384e)}
-.tray.feed-tray .cube.one.tray-item{z-index:2;width:36px;height:36px;border-radius:9px;border:2px solid #8f6fe8;background:linear-gradient(145deg,#c4a8f7,#8b5cf0 55%,#6d3fd4);box-shadow:inset 0 3px 4px #ffffff66,inset 0 -4px 6px #3c1e7855,0 4px 8px #0009,0 1px 2px #000a}
+.tray.feed-tray .cube.one.tray-item{z-index:4;width:36px;height:36px;border-radius:9px;border:2px solid #8f6fe8;background:linear-gradient(145deg,#c4a8f7,#8b5cf0 55%,#6d3fd4);box-shadow:inset 0 3px 4px #ffffff66,inset 0 -4px 6px #3c1e7855,0 4px 8px #0009,0 1px 2px #000a}
 .tray.feed-tray .cube.one.tray-item::after{content:'';position:absolute;inset:3px;border:1.5px dashed #5b34a888;border-radius:6px}
 .tray.feed-tray svg.bk{position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,360px);height:auto;pointer-events:none}
 .tray.feed-tray svg.bk-back{z-index:1}
-.tray.feed-tray svg.bk-front{z-index:5}
+.tray.feed-tray svg.bk-front{z-index:6}
 .tray.feed-tray.drop-hi{border:none;box-shadow:none}
 .tray.feed-tray.drop-hi svg.bk-front{filter:drop-shadow(0 -2px 9px #79f5dfbb) drop-shadow(0 0 5px #79f5df66)}
 /* plush block slots */
@@ -153,3 +153,4 @@ button.cube.tray-item{border-radius:2px}
 @media(max-width:340px){.tray.feed-tray{--lane:64px}.tray.feed-tray .rod.tray-item .cube{width:9px}.tray.feed-tray .rod.tray-item.r1{left:calc(50% - var(--lane));bottom:90px;transform:translateX(-50%) rotate(-4deg)}.tray.feed-tray .rod.tray-item.r2{left:calc(50% + var(--lane));bottom:91px;transform:translateX(-50%) rotate(4deg)}.tray.feed-tray .rod.tray-item.r3{left:50%;bottom:119px;transform:translateX(-50%) rotate(-2deg)}}
 
 .tray.feed-tray .rod.tray-item .cube{width:10px;height:12px}
+.tray.feed-tray .tray-item{transition:background .15s,filter .15s}
