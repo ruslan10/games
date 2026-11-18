@@ -58,3 +58,6 @@ storage/caches as an update workaround.
 Update QA: `node tests/updates.cjs` (Playwright from `runner/node_modules`) and
 `node tests/update-guards.cjs`. The browser test simulates publishing a new release
 while each game is open, and checks deferred refresh and byte-for-byte save retention.
+
+## רישיון וזכויות שימוש
+המשחקים זמינים למשחק באתר, אך הקוד והתוכן המקוריים אינם קוד פתוח. אין רשות להעתיק, לשנות, להפיץ, לארח מחדש או להשתמש בהם בפרויקטים אחרים ללא אישור מראש ובכתב, בכפוף לחריגים שבקובץ [LICENSE](LICENSE). רכיבי צד שלישי נשארים תחת הרישיונות שלהם.
