@@ -62,7 +62,7 @@ function pause(exit=false){window.Lab3D?.setPaused(true);if(!game||screen!=='gam
 let last=performance.now();setInterval(()=>{const now=performance.now(),delta=Math.min((now-last)/1000,1);last=now;if(!game||screen!=='game'||!speed||game.paused||game.done||game.lesson||document.hidden)return;game.time=Math.max(0,game.time-delta);const c=document.querySelector('#clock');if(c)c.textContent=Math.ceil(game.time)+'s';if(game.time<=0)finish(true)},200);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&game&&screen==='game'&&!game.paused)pause()});
 // Pure generators are exposed for automated arithmetic QA, never for storage or account access.
-window.MonsterLab={skipLesson:()=>{if(game&&game.lesson){game.lesson=false;render()}},makeQuestion,apply,getState:()=>game?{mode:game.mode,n:game.n,q:game.q,done:game.done,errors:game.errors,time:game.time}:null,getTimes:()=>tm?{step:tm.step,n:tm.n,skip:tm.skip,gq:tm.gq,gks:tm.gks,pq:tm.pq,pDone:tm.pDone,boardPraised:tm.boardPraised,pQs:tm.pQs?tm.pQs.map(q=>({a:q.a,b:q.b,ans:q.ans})):null}:null};
+window.MonsterLab={forceStep:st=>{if(tm){tm.step=st;tm.skip=0;tm.sOpts=null;tm.boardPraised=0;renderTimes()}},skipLesson:()=>{if(game&&game.lesson){game.lesson=false;render()}},makeQuestion,apply,getState:()=>game?{mode:game.mode,n:game.n,q:game.q,done:game.done,errors:game.errors,time:game.time}:null,getTimes:()=>tm?{step:tm.step,n:tm.n,skip:tm.skip,gq:tm.gq,gks:tm.gks,pq:tm.pq,pDone:tm.pDone,boardPraised:tm.boardPraised,pQs:tm.pQs?tm.pQs.map(q=>({a:q.a,b:q.b,ans:q.ans})):null}:null};
 // ===== Multiplication-table room: teach first (groups, rows, skip counting, guided), then optional practice =====
 let tm=null;const TSTEPS=['groups','array','skip','guided'];
 const stepNames={groups:'קבוצות שוות',array:'שורות וטורים',skip:'קפיצות',guided:'פותרים עם עזרה',done:'סיכום',practice:'תרגול'};
@@ -239,7 +239,8 @@ function voiceSync(){
   const pre=pend&&pend.screen===screen&&pend.task===taskSeq?pend.clip:null;
   if(!key){if(pre&&save.voice&&vUnlocked){let x=pend.x;const fresh=explainParts();if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null;voicePlay([pre,...(x||[])]);praiseTask=pend.task}else voiceStop();return} // narration-less state right after a success (e.g. last skip jump): praise still carries its explanation
   if(!vUnlocked){voiceStop();vBlocked=true;voiceBtnState();return}
-  if(save.voice)voicePlay(pre?[pre,...parts]:parts);else voiceStop()}
+  const nx=pre?explainParts():null,px=nx&&pend.x&&nx.join('|')===pend.x.join('|')?pend.x:null; // skip jump: praise, then why the new total is right, then the next question
+  if(save.voice)voicePlay(pre?[pre,...(px||[]),...parts]:parts);else voiceStop()}
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 function voiceUnlock(){if(vUnlocked)return;vUnlocked=true;try{vaud.src=SILENT;const p=vaud.play();p&&p.catch&&p.catch(()=>{})}catch{}}
 document.addEventListener('pointerdown',voiceUnlock,{capture:true,passive:true});

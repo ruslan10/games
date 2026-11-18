@@ -147,7 +147,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   await p.locator(`[data-t="${wrongBtn}"]`).click();
   await sleep(300);
   assert.equal(await praiseCount(p),curBase,'no praise on wrong skip answer');
-  // now answer correctly and check sequencing: praise must play immediately before next mult prompt
+  // now answer correctly and check sequencing: praise, then the jump explanation, play before the next mult prompt
   let beforePlays=await plays(p);
   await p.locator(`[data-t="skip:${correct}"]`).click();
   await p.waitForFunction(()=>/mult_q_pre|t_skip_pre/.test(MonsterLabVoice.state().src),null,{timeout:6000});
@@ -155,7 +155,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let pi=pl.findIndex(u=>/praise\d/.test(u));
   assert(pi>=0,'praise played on correct skip answer');
   let mi=pl.findIndex(u=>/mult_q_pre|t_skip_pre/.test(u));
-  assert(mi===pi+1,`praise immediately precedes next skip prompt (praise@${pi}, prompt@${mi})`);
+  assert(mi>pi&&pl.slice(pi+1,mi).every(u=>/\/(e_|c2|n\d+)/.test(u)),`praise, then only explanation clips, precede next skip prompt (praise@${pi}, prompt@${mi})`);
   console.log('PASS skip: praise sequenced ahead of next question narration');
 
   // --- Guided: correct answer praises ---
