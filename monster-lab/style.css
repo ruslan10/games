@@ -57,3 +57,4 @@
 .voice-btn.attn{animation:voicePulse 1.4s ease-in-out infinite}
 @keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 #79f5df66}50%{box-shadow:0 0 0 8px #79f5df00}}
 @media (prefers-reduced-motion:reduce){.voice-btn.attn{animation:none;border-color:var(--mint)}}
+
