@@ -182,7 +182,7 @@ function voicePlay(parts){
 const cNum=n=>n===2?'c2':vNum(n); // construct form before a feminine plural noun: שתי vs שתיים
 function repAdd(k,m){const r=[];for(let i=0;i<k;i++){if(i)r.push('e_plus');r.push(vNum(m))}return r}
 const chain=a=>a.every(Boolean)?a:null; // never speak a half-built explanation: one out-of-range number drops the whole chain, not just that word
-function explainParts(){
+function explainParts(forPraise){
   if(screen==='game'&&game&&game.done&&game.q){ // classic labs: explain only after a correct check, so the answer is never given away early
     const q=game.q;
     if(game.mode==='feed'){
@@ -198,7 +198,7 @@ function explainParts(){
     return chain(['e_cmp_split',cNum(common),'e_equal_slices','e_left',vNum(L),'e_right',vNum(R),q.answer===0?'e_cmp_equal':q.answer>0?'e_cmp_left':'e_cmp_right'])}
   if(screen!=='times'||!tm)return null;
   const t=tm,n=t.n;
-  if(t.step==='skip'&&t.skip>0){ // a jump was just answered: the previous total plus one more group makes the new total
+  if(t.step==='skip'&&t.skip>0&&(forPraise||t.skip>=10)){ // mid-table the explanation is spoken once after the jump; replay/label stay on the instruction of the unanswered jump // a jump was just answered: the previous total plus one more group makes the new total
     if(t.skip===1)return chain(['e_one_group',vNum(n),'e_is',vNum(n)]);
     return chain(['e_skip_pre',vNum((t.skip-1)*n),'e_plus',vNum(n),'e_eq',vNum(t.skip*n)])}
   if((t.step==='groups'||t.step==='array')&&t.boardPraised){
@@ -218,10 +218,10 @@ let lastPraise=-1,pendingPraise=null,praiseTimer=0,praiseTask=-1;
 function praise(){
   if(!save.voice||!vUnlocked||document.hidden)return;
   let i=rand(0,PRAISES.length-1);if(PRAISES.length>1&&i===lastPraise)i=(i+1)%PRAISES.length;lastPraise=i;
-  pendingPraise={clip:PRAISES[i],screen,task:taskSeq,x:explainParts()};clearTimeout(praiseTimer);
+  pendingPraise={clip:PRAISES[i],screen,task:taskSeq,x:explainParts(true)};clearTimeout(praiseTimer);
   praiseTimer=setTimeout(()=>{praiseTimer=0;const p=pendingPraise;pendingPraise=null;
     if(p&&p.screen===screen&&p.task===taskSeq&&save.voice&&!document.hidden&&!document.querySelector('.overlay')){
-      let x=p.x;const fresh=explainParts();
+      let x=p.x;const fresh=explainParts(true);
       if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null; // board undone or task moved inside the pending window: no stale answer explanation
       voicePlay([p.clip,...(x||[])]);praiseTask=p.task}},80)}
 function voiceSync(){
@@ -229,7 +229,7 @@ function voiceSync(){
   const parts=voiceParts(),key=parts?parts.join('|'):null,task=taskSeq;
   voiceBtnState(); // completed/unanswered state changes the replay label even without an audio event
   const host=document.querySelector('.top-actions')||document.querySelector('header');
-  if(host&&parts&&!document.getElementById('voiceSay')){
+  if(host&&(parts||explainParts())&&!document.getElementById('voiceSay')){ // a completed explanation alone (final skip jump, no next instruction) still gets a replay button
     host.insertAdjacentHTML('afterbegin',`<button class="icon ghost voice-btn" id="voiceSay" type="button">🔊</button>`);
     document.getElementById('voiceSay').onclick=()=>{if(vPlaying){voiceStop();return}voiceUnlock();const p=voiceParts();vKey=p?p.join('|'):null;vTask=taskSeq;voicePlay(explainParts()||p)}; // completed state replays the explanation; unanswered state replays the instruction only
     voiceBtnState()}
@@ -237,9 +237,9 @@ function voiceSync(){
   vKey=key;vTask=task;
   const pend=pendingPraise;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;
   const pre=pend&&pend.screen===screen&&pend.task===taskSeq?pend.clip:null;
-  if(!key){if(pre&&save.voice&&vUnlocked){let x=pend.x;const fresh=explainParts();if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null;voicePlay([pre,...(x||[])]);praiseTask=pend.task}else voiceStop();return} // narration-less state right after a success (e.g. last skip jump): praise still carries its explanation
+  if(!key){if(pre&&save.voice&&vUnlocked){let x=pend.x;const fresh=explainParts(true);if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null;voicePlay([pre,...(x||[])]);praiseTask=pend.task}else voiceStop();return} // narration-less state right after a success (e.g. last skip jump): praise still carries its explanation
   if(!vUnlocked){voiceStop();vBlocked=true;voiceBtnState();return}
-  const nx=pre?explainParts():null,px=nx&&pend.x&&nx.join('|')===pend.x.join('|')?pend.x:null; // skip jump: praise, then why the new total is right, then the next question
+  const nx=pre?explainParts(true):null,px=nx&&pend.x&&nx.join('|')===pend.x.join('|')?pend.x:null; // skip jump: praise, then why the new total is right, then the next question
   if(save.voice)voicePlay(pre?[pre,...(px||[]),...parts]:parts);else voiceStop()}
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 function voiceUnlock(){if(vUnlocked)return;vUnlocked=true;try{vaud.src=SILENT;const p=vaud.play();p&&p.catch&&p.catch(()=>{})}catch{}}
