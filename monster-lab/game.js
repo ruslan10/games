@@ -2,7 +2,7 @@
 (() => {
 const app=document.querySelector('#app'), KEY='monster-lab:v1';
 const stations={feed:{name:'מזנון הקוביות',short:'עשרות ויחידות',description:'בנו מספרים והאכילו חבר רעב',emoji:'💎',friend:'בּוּבּוּ'},machine:{name:'מכונת הכללים',short:'דפוסים ופעולות',description:'גלו מה נכנס, ומה יוצא',emoji:'⚙️',friend:'פרופסור פּוּף'},fractions:{name:'פיצריית השברים',short:'חלקים של שלם',description:'חלקו, צבעו והשוו פיצות',emoji:'🍕',friend:'זיק ופוף'}};
-const fresh=()=>({xp:0,solved:0,rounds:0,band:0,sound:false,voice:true,medals:{}});
+const fresh=()=>({xp:0,solved:0,rounds:0,band:0,sound:false,voice:true,voiceRate:1,medals:{}});
 let save=fresh();try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'){save={...fresh(),...s};for(const k of ['xp','solved','rounds'])if(!Number.isFinite(save[k])||save[k]<0)save[k]=0;if(![0,1,2].includes(save.band))save.band=0;if(!save.medals||typeof save.medals!=='object')save.medals={};save.sound=save.sound===true}}catch{}
 for(const mode of ['feed','machine','fractions'])for(let b=0;b<3;b++){const k=mode+b,v=save.medals[k];save.medals[k]=Number.isInteger(v)&&v>=0&&v<=3?v:0}
 if(!save.times||typeof save.times!=='object')save.times={};for(const k of ['learned','stars']){if(!save.times[k]||typeof save.times[k]!=='object'||Array.isArray(save.times[k]))save.times[k]={};for(const n of Object.keys(save.times[k])){const v=save.times[k][n],t=Number(n);if(!(Number.isInteger(t)&&t>=2&&t<=10)||!(Number.isInteger(v)&&v>=0&&v<=3)){delete save.times[k][n]}else if(k==='learned')save.times[k][n]=v?1:0}}
@@ -270,8 +270,21 @@ function timesAct(a){const t=tm,n=t.n,L=window.Lab3D;if(!t)return;
 
 // ===== Spoken Hebrew instructions: bundled clips, one audio channel, replay button =====
 save.voice=save.voice!==false;
+const VOICE_SPEEDS=[{rate:0.75,label:'לאט'},{rate:1,label:'רגיל'},{rate:1.25,label:'מהר'}];
+if(!VOICE_SPEEDS.some(s=>s.rate===save.voiceRate))save.voiceRate=1;
 const VQ=(document.currentScript?.src.match(/[?&]v=([a-f0-9]+)/)||[])[1]||'';
-const vaud=new Audio();vaud.preload='auto';
+const vaud=new Audio();vaud.preload='auto';vaud.preservesPitch=true;
+function voiceSpeedSync(){
+  const header=document.querySelector('#app header');if(!header)return;
+  let control=document.getElementById('voiceSpeed');
+  if(!control){
+    header.insertAdjacentHTML('afterend',`<div class="voice-speed" id="voiceSpeed" role="group" aria-label="מהירות הדיבור בהדרכות"><span>מהירות הדיבור</span><div class="segments">${VOICE_SPEEDS.map(s=>`<button type="button" data-voice-rate="${s.rate}" aria-pressed="false">${s.label}</button>`).join('')}</div></div>`);
+    control=document.getElementById('voiceSpeed');
+    control.addEventListener('click',e=>{const b=e.target.closest('[data-voice-rate]');if(!b)return;save.voiceRate=Number(b.dataset.voiceRate);vaud.playbackRate=save.voiceRate;persist();voiceSpeedSync()});
+  }
+  for(const b of control.querySelectorAll('[data-voice-rate]')){const active=Number(b.dataset.voiceRate)===save.voiceRate;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))}
+}
+
 let vtok=0,vUnlocked=false,vKey=null,vTask=-1,vParts=null,vPlaying=false,vBlocked=false;
 const vUrl=p=>'audio/'+p+'.mp3'+(VQ?'?v='+VQ:'');
 const vNum=n=>Number.isInteger(n)&&n>=1&&n<=100?'n'+n:null;
@@ -303,7 +316,7 @@ function voicePlay(parts){
   voiceStop();const list=(parts||[]).filter(Boolean);if(!list.length)return;
   const tok=vtok,urls=list.map(vUrl);let i=0;vPlaying=true;vBlocked=false;voiceBtnState();
   const step=()=>{if(tok!==vtok)return;if(i>=urls.length){vPlaying=false;voiceBtnState();return}
-    vaud.src=urls[i++];const p=vaud.play();if(p&&p.catch)p.catch(err=>{if(tok!==vtok)return;vPlaying=false;vBlocked=err&&err.name==='NotAllowedError';voiceBtnState()})};
+    vaud.src=urls[i++];vaud.playbackRate=save.voiceRate;const p=vaud.play();if(p&&p.catch)p.catch(err=>{if(tok!==vtok)return;vPlaying=false;vBlocked=err&&err.name==='NotAllowedError';voiceBtnState()})};
   vaud.onended=step;vaud.onerror=()=>{if(tok!==vtok)return;vPlaying=false;voiceBtnState()};
   step()}
 // ===== Spoken explanation of a completed exercise (times room): chained after praise, replayable, never reveals an unanswered task =====
@@ -353,6 +366,7 @@ function praise(){
       if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null; // board undone or task moved inside the pending window: no stale answer explanation
       voicePlay([p.clip,...(x||[])]);praiseTask=p.task}},80)}
 function voiceSync(){
+  voiceSpeedSync();
   const au=document.getElementById('voiceAuto');if(au&&!au.dataset.b){au.dataset.b='1';au.checked=save.voice;au.onchange=()=>{save.voice=au.checked;persist();if(!save.voice)voiceStop()}}
   const parts=voiceParts(),key=parts?parts.join('|'):null,task=taskSeq;
   voiceBtnState(); // completed/unanswered state changes the replay label even without an audio event
@@ -376,7 +390,7 @@ document.addEventListener('keydown',voiceUnlock,{capture:true});
 new MutationObserver(()=>voiceSync()).observe(app,{childList:true});
 new MutationObserver(()=>{if(document.querySelector('.overlay'))voiceStop()}).observe(document.body,{childList:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)voiceStop()});
-window.MonsterLabVoice={parts:voiceParts,explain:explainParts,stop:voiceStop,praise,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,src:vaud.src,pending:pendingPraise?pendingPraise.clip:null,pendingX:pendingPraise&&pendingPraise.x?pendingPraise.x.length:0})};
+window.MonsterLabVoice={parts:voiceParts,explain:explainParts,stop:voiceStop,praise,state:()=>({key:vKey,playing:vPlaying,unlocked:vUnlocked,rate:vaud.playbackRate,savedRate:save.voiceRate,src:vaud.src,pending:pendingPraise?pendingPraise.clip:null,pendingX:pendingPraise&&pendingPraise.x?pendingPraise.x.length:0})};
 home();
 })();
 
