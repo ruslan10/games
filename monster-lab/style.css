@@ -154,3 +154,5 @@ button.cube.tray-item{border-radius:2px}
 
 .tray.feed-tray .rod.tray-item .cube{width:10px;height:12px}
 .tray.feed-tray .tray-item{transition:background .15s,filter .15s}
+
+.band-note{margin:10px 2px 0;font-size:13.5px;line-height:1.45;color:var(--muted)}.band-note b{color:var(--mint)}
