@@ -179,21 +179,38 @@ function voicePlay(parts){
   vaud.onended=step;vaud.onerror=()=>{if(tok!==vtok)return;vPlaying=false;voiceBtnState()};
   step()}
 // ===== Spoken explanation of a completed exercise (times room): chained after praise, replayable, never reveals an unanswered task =====
-const cNum=n=>n===2?'c2':vNum(n); // construct form before סוכריות: שתי vs שתיים
+const cNum=n=>n===2?'c2':vNum(n); // construct form before a feminine plural noun: שתי vs שתיים
 function repAdd(k,m){const r=[];for(let i=0;i<k;i++){if(i)r.push('e_plus');r.push(vNum(m))}return r}
+const chain=a=>a.every(Boolean)?a:null; // never speak a half-built explanation: one out-of-range number drops the whole chain, not just that word
 function explainParts(){
+  if(screen==='game'&&game&&game.done&&game.q){ // classic labs: explain only after a correct check, so the answer is never given away early
+    const q=game.q;
+    if(game.mode==='feed'){
+      if(q.a)return chain([vNum(q.a),'e_kful',vNum(q.v),'e_eq',vNum(q.a*q.v),'e_ki',...repAdd(q.a,q.v),'e_eq',vNum(q.a*q.v)]); // groups of cubes as repeated addition, like the times room
+      const tens=Math.floor(q.target/10),ones=q.target%10;
+      return chain([vNum(q.target),'e_eq',...(tens===1?['e_one_rod']:[cNum(tens),'e_tens']),...(ones?['e_plus',...(ones===1?['e_one_unit']:[cNum(ones),'e_ones'])]:[]),'e_rod'])} // "34 שווה 3 עשרות ועוד 4 יחידות": שווה is the neutral connector (e_is is a feminine copula)
+    if(game.mode==='machine'){
+      const opClip={'+':'e_plus','−':'e_minus','×':'e_kful','÷':'e_div'}[q.op],rule={'+':'e_rule_add','−':'e_rule_sub','×':'e_rule_mul','÷':'e_rule_div'}[q.op];
+      if(!opClip||!rule)return null;
+      return chain([rule,vNum(q.k),...q.ins.slice(0,2).flatMap(x=>[vNum(x),opClip,vNum(q.k),'e_eq',vNum(apply(q.op,q.k,x))])])} // the discovered rule, then the first two rows verified aloud (two examples establish the pattern without a long checklist)
+    if(q.kind==='build'){const f=q.outden/q.den;return chain(['e_colored',vNum(q.answer),'e_outof',vNum(q.outden),'e_slices','e_same_as',vNum(q.num),'e_outof',vNum(q.den),'e_slices','e_ki','e_each_slice',cNum(f),'e_small_slices'])} // X out of Y slices: no ordinal grammar
+    const common=q.l[1]*q.r[1]/gcd(q.l[1],q.r[1]),L=q.l[0]*common/q.l[1],R=q.r[0]*common/q.r[1];
+    return chain(['e_cmp_split',cNum(common),'e_equal_slices','e_left',vNum(L),'e_right',vNum(R),q.answer===0?'e_cmp_equal':q.answer>0?'e_cmp_left':'e_cmp_right'])}
   if(screen!=='times'||!tm)return null;
   const t=tm,n=t.n;
+  if(t.step==='skip'&&t.skip>0){ // a jump was just answered: the previous total plus one more group makes the new total
+    if(t.skip===1)return chain(['e_one_group',vNum(n),'e_is',vNum(n)]);
+    return chain(['e_skip_pre',vNum((t.skip-1)*n),'e_plus',vNum(n),'e_eq',vNum(t.skip*n)])}
   if((t.step==='groups'||t.step==='array')&&t.boardPraised){
     const st=t.step==='groups'?t.bags:t.rows;
     if(!st.every(b=>b.every(Boolean)))return null; // board no longer complete: no stale explanation
     const pre=t.step==='groups'?['e_bags_pre']:['e_rows_alt','e_rows_pre'];
     const base=[...pre,cNum(n),'e_candies',...repAdd(3,n),'e_eq',vNum(3*n),'e_so3',vNum(n),'e_eq',vNum(3*n)];
-    return t.step==='groups'?[...base,'e_meaning']:base}
-  if(t.step==='guided'&&t.gDone){const k=t.gks[t.gq];return [vNum(k),'e_kful',vNum(n),'e_eq',vNum(k*n),'e_ki',...repAdd(k,n),'e_eq',vNum(k*n)]}
+    return t.step==='groups'?chain([...base,'e_meaning']):chain(base)}
+  if(t.step==='guided'&&t.gDone){const k=t.gks[t.gq];return chain([vNum(k),'e_kful',vNum(n),'e_eq',vNum(k*n),'e_ki',...repAdd(k,n),'e_eq',vNum(k*n)])}
   if(t.step==='practice'&&t.ftype==='success'&&!t.pDone){const q=t.pQs[t.pq];if(!q)return null;
-    if(q.a===1)return [vNum(1),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_one_group',vNum(q.b),'e_is',vNum(q.b)]; // one group of b is b, no untaught commutativity
-    return [vNum(q.a),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_ki',...repAdd(q.a,q.b),'e_eq',vNum(q.ans)]}
+    if(q.a===1)return chain([vNum(1),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_one_group',vNum(q.b),'e_is',vNum(q.b)]); // one group of b is b, no untaught commutativity
+    return chain([vNum(q.a),'e_kful',vNum(q.b),'e_eq',vNum(q.ans),'e_ki',...repAdd(q.a,q.b),'e_eq',vNum(q.ans)])}
   return null}
 // ===== Spoken encouragement on success: one random short clip, sequenced before any next instruction =====
 const PRAISES=['praise1','praise2','praise3','praise4','praise5','praise6','praise7','praise8'];
@@ -220,7 +237,7 @@ function voiceSync(){
   vKey=key;vTask=task;
   const pend=pendingPraise;pendingPraise=null;clearTimeout(praiseTimer);praiseTimer=0;
   const pre=pend&&pend.screen===screen&&pend.task===taskSeq?pend.clip:null;
-  if(!key){if(pre&&save.voice&&vUnlocked){voicePlay([pre]);praiseTask=pend.task}else voiceStop();return}
+  if(!key){if(pre&&save.voice&&vUnlocked){let x=pend.x;const fresh=explainParts();if(x&&(!fresh||fresh.join('|')!==x.join('|')))x=null;voicePlay([pre,...(x||[])]);praiseTask=pend.task}else voiceStop();return} // narration-less state right after a success (e.g. last skip jump): praise still carries its explanation
   if(!vUnlocked){voiceStop();vBlocked=true;voiceBtnState();return}
   if(save.voice)voicePlay(pre?[pre,...parts]:parts);else voiceStop()}
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
