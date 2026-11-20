@@ -1,7 +1,7 @@
 // Run after editing game code and after rebuilding Runner. No dependencies.
 import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-const pages = ['index.html', 'stickman/index.html', 'runner/index.html', 'monster-lab/index.html'];
+const pages = ['index.html', 'stickman/index.html', 'runner/index.html', 'monster-lab/index.html', 'english/index.html'];
 const normalize = html => html.replace(/(name="games-release" content=")[^"]+/, '$1BUILD')
   .replace(/([?&])v=[a-f0-9]{16}/g, '');
 const assets = new Set(['update.js']);
@@ -13,6 +13,8 @@ for (const page of pages) {
 }
 for (const name of readdirSync('monster-lab/assets')) if (/\.(?:js|webp|ttf)$/.test(name)) assets.add('monster-lab/assets/' + name);
 for (const name of readdirSync('monster-lab/audio')) if (/\.mp3$/.test(name)) assets.add('monster-lab/audio/' + name);
+for (const name of readdirSync('english/assets')) if (/\.(?:js|webp|ttf)$/.test(name)) assets.add('english/assets/' + name);
+for (const name of readdirSync('english/audio')) if (/\.mp3$/.test(name)) assets.add('english/audio/' + name);
 const hash = createHash('sha256');
 for (const name of [...assets].sort()) hash.update(name).update(readFileSync(name));
 for (const name of pages) hash.update(name).update(normalize(readFileSync(name, 'utf8')));
